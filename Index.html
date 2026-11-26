@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EaseBiz SmartScreen – Camera Test</title>
+<style>
+  :root {
+    --navy: #1f2a44; --teal: #0f7c80; --teal-soft: #e3f2f2; --ink: #1d2433; --muted: #5b6475;
+    --line: #dde2ea; --bg: #f6f7f9; --good: #1e7d3a; --good-soft: #e5f4e8; --bad: #b42318;
+    --bad-soft: #fdecea; --warn: #9a6200; --warn-soft: #fdf3dc;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+         background: var(--bg); color: var(--ink); font-size: 16px; line-height: 1.45; }
+  header { background: var(--navy); color: #fff; padding: 16px 20px; }
+  header .brand { font-weight: 700; font-size: 18px; letter-spacing: .2px; }
+  header .sub { font-size: 13px; opacity: .85; }
+  main { max-width: 640px; margin: 0 auto; padding: 16px; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+  h2 { font-size: 17px; margin: 0 0 8px; }
+  p { margin: 6px 0; }
+  .muted { color: var(--muted); font-size: 14px; }
+  label { display: block; font-size: 14px; font-weight: 600; margin: 12px 0 4px; }
+  input, select, textarea { width: 100%; font-size: 16px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+  textarea { min-height: 70px; }
+  button { font-size: 16px; font-weight: 600; border: 0; border-radius: 8px; padding: 12px 18px; cursor: pointer;
+           background: var(--teal); color: #fff; margin: 8px 8px 0 0; }
+  button.secondary { background: #fff; color: var(--teal); border: 1px solid var(--teal); }
+  button:disabled { opacity: .5; cursor: default; }
+  .video-wrap { position: relative; background: #000; border-radius: 10px; overflow: hidden; margin-top: 10px; }
+  video { width: 100%; display: block; max-height: 360px; background: #000; }
+  #preview { transform: scaleX(-1); }
+  .badge { position: absolute; left: 10px; top: 10px; background: rgba(0,0,0,.65); color: #fff; font-size: 13px;
+           padding: 4px 8px; border-radius: 6px; }
+  .rec { position: absolute; right: 10px; top: 10px; background: #c62828; color: #fff; font-size: 13px; font-weight: 700;
+         padding: 4px 8px; border-radius: 6px; display: none; }
+  .meter { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; margin-top: 8px; }
+  .meter > div { height: 100%; width: 0; background: var(--teal); transition: width .1s; }
+  ol.steps { list-style: none; padding: 0; margin: 0; }
+  ol.steps li { display: flex; justify-content: space-between; align-items: center; gap: 10px;
+                padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+  ol.steps li:last-child { border-bottom: 0; }
+  .st { font-size: 13px; font-weight: 700; padding: 3px 8px; border-radius: 6px; white-space: nowrap; }
+  .st.wait { background: var(--bg); color: var(--muted); }
+  .st.run { background: var(--teal-soft); color: var(--teal); }
+  .st.pass { background: var(--good-soft); color: var(--good); }
+  .st.fail { background: var(--bad-soft); color: var(--bad); }
+  .st.skip { background: var(--warn-soft); color: var(--warn); }
+  .hidden { display: none; }
+  .instruction { background: var(--teal-soft); border-radius: 8px; padding: 10px 12px; margin-top: 10px; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  td { padding: 7px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td:first-child { color: var(--muted); width: 48%; }
+  .overall { font-size: 18px; font-weight: 700; margin: 6px 0 10px; }
+  .overall.pass { color: var(--good); } .overall.fail { color: var(--bad); }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">EaseBiz SmartScreen</div>
+  <div class="sub">Camera test · about 3 minutes · for the EaseBiz team</div>
+</header>
+
+<main>
+  <!-- Start -->
+  <section class="card" id="startCard">
+    <h2>Before you start</h2>
+    <p class="muted">This checks that video interviews will work on this device. Sit somewhere quiet with good light. When the browser asks, allow the camera and microphone.</p>
+    <label for="label">Your role and this device (for example, "Recruiter 2 – Redmi phone")</label>
+    <input id="label" maxlength="60" autocomplete="off">
+    <label for="deviceType">Device type</label>
+    <select id="deviceType">
+      <option value="">Choose…</option>
+      <option>Android phone</option>
+      <option>iPhone</option>
+      <option>Laptop or desktop</option>
+      <option>Tablet</option>
+    </select>
+    <p class="muted" id="engineStatus">Checking the connection…</p>
+    <button id="startBtn">Start the test</button>
+    <p class="muted" id="startError" style="color: var(--bad);"></p>
+  </section>
+
+  <!-- Progress -->
+  <section class="card hidden" id="progressCard">
+    <h2>Progress</h2>
+    <ol class="steps">
+      <li>1. Camera and microphone <span class="st wait" id="s1">Waiting</span></li>
+      <li>2. Face detection <span class="st wait" id="s2">Waiting</span></li>
+      <li>3. Record 15 seconds <span class="st wait" id="s3">Waiting</span></li>
+      <li>4. Save recording to Drive <span class="st wait" id="s4">Waiting</span></li>
+      <li>5. Large upload (8 MB) <span class="st wait" id="s5">Waiting</span></li>
+      <li>6. Leaving the page is noticed <span class="st wait" id="s6">Waiting</span></li>
+    </ol>
+  </section>
+
+  <!-- Live area -->
+  <section class="card hidden" id="liveCard">
+    <h2 id="liveTitle">Camera</h2>
+    <p id="liveText" class="muted"></p>
+    <div class="video-wrap" id="previewWrap">
+      <video id="preview" autoplay muted playsinline></video>
+      <div class="badge" id="faceBadge">Faces: –</div>
+      <div class="rec" id="recBadge">● REC 15</div>
+    </div>
+    <div class="meter" id="meterWrap"><div id="meter"></div></div>
+    <div class="instruction hidden" id="instruction"></div>
+
+    <div class="hidden" id="playbackBox">
+      <div class="video-wrap"><video id="playback" controls playsinline></video></div>
+      <p><strong>Play the recording. Can you see and hear yourself clearly?</strong></p>
+      <button id="playYes">Yes</button>
+      <button id="playNo" class="secondary">No</button>
+    </div>
+
+    <div class="hidden" id="leaveBox">
+      <p><strong>Now switch to another app or browser tab for about 3 seconds, then come back here.</strong></p>
+      <p class="muted" id="leaveStatus">Waiting for you to leave and come back…</p>
+      <button id="leaveSkip" class="secondary">Skip this step</button>
+    </div>
+  </section>
+
+  <!-- Results -->
+  <section class="card hidden" id="resultCard">
+    <h2>Results</h2>
+    <div class="overall" id="overall"></div>
+    <table id="resultTable"></table>
+    <label for="notes">Anything odd you noticed? (optional)</label>
+    <textarea id="notes" maxlength="500"></textarea>
+    <button id="saveBtn">Save results</button>
+    <p class="muted" id="saveStatus"></p>
+  </section>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  // ===== SETTING: paste your Apps Script Web app URL (ending in /exec) between the quotes =====
+  var BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzbcbT12GZ3TWB93AKRw_FebvRK1DgnZdZfczZ5EzwaV1mgybVPUfl8FCMGbd8YMbcBdw/exec';
+  // ===========================================================================================
+
+  var MEDIAPIPE_VERSION = '1.2.3';
+  var MEDIAPIPE_BASE = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@' + MEDIAPIPE_VERSION;
+  // Official model location first (Google's MediaPipe page links to Hugging Face); older Google storage address as backup.
+  var FACE_MODELS = [
+    'https://huggingface.co/litert-community/MediaPipe-FaceDetector-BlazeFace-Short-Range/resolve/main/blaze_face_short_range.tflite',
+    'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite'
+  ];
+  var RECORD_SECONDS = 15;
+  var LARGE_UPLOAD_BYTES = 8 * 1024 * 1024;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var stream = null;
+  var audioCtx = null;
+  var faceDetector = null;
+  var faceLoopOn = false;
+  var R = {
+    label: '', deviceType: '', userAgent: navigator.userAgent,
+    camera: 'Not run', cameraError: '', cameraPolicy: 'Unknown', micSound: 'Not run',
+    faceDetection: 'Not run', maxFaces: 0, recFormat: '', recSeconds: '', recSizeKB: '',
+    playback: 'Not run', recUpload: 'Not run', recUploadSeconds: '', recUrl: '',
+    largeUpload: 'Not run', largeUploadSeconds: '', uploadMbps: '',
+    leftPage: 0, fullscreen: '', overall: '', notes: ''
+  };
+
+  // ---------- helpers ----------
+  function setStep(n, cls, text) {
+    var el = $('s' + n);
+    el.className = 'st ' + cls;
+    el.textContent = text;
+  }
+  function show(id, on) { $(id).classList.toggle('hidden', !on); }
+  function live(title, text) { $('liveTitle').textContent = title; $('liveText').textContent = text || ''; }
+  function instruct(text) { $('instruction').textContent = text || ''; show('instruction', !!text); }
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function withTimeout(p, ms, what) {
+    return Promise.race([p, new Promise(function (_, rej) {
+      setTimeout(function () { rej(new Error(what + ' took longer than ' + Math.round(ms / 1000) + ' seconds')); }, ms);
+    })]);
+  }
+  // Sends a request to the Google engine. Plain-text JSON avoids an extra browser check (CORS preflight).
+  function server(action, data) {
+    var body = { action: action };
+    for (var k in data) { if (Object.prototype.hasOwnProperty.call(data, k)) body[k] = data[k]; }
+    return fetch(BACKEND_URL, { method: 'POST', body: JSON.stringify(body), redirect: 'follow' })
+      .then(function (res) {
+        if (!res.ok) throw new Error('Engine replied with status ' + res.status);
+        return res.json();
+      });
+  }
+  function backendConfigured() { return /^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(BACKEND_URL); }
+  function blobToBase64(blob) {
+    return new Promise(function (resolve, reject) {
+      var fr = new FileReader();
+      fr.onload = function () { resolve(String(fr.result).split(',')[1] || ''); };
+      fr.onerror = function () { reject(fr.error || new Error('Could not read file')); };
+      fr.readAsDataURL(blob);
+    });
+  }
+  function errText(e) {
+    if (!e) return 'Unknown error';
+    return (e.name ? e.name + ': ' : '') + (e.message || String(e));
+  }
+  function pickMimeType() {
+    if (typeof MediaRecorder === 'undefined') return null;
+    var options = ['video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4;codecs=avc1,mp4a', 'video/mp4'];
+    for (var i = 0; i < options.length; i++) {
+      try { if (MediaRecorder.isTypeSupported(options[i])) return options[i]; } catch (e) { /* try next */ }
+    }
+    return '';
+  }
+
+  // ---------- leaving-the-page counter (runs for the whole test) ----------
+  var leaveWaiter = null;
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') {
+      R.leftPage += 1;
+    } else if (leaveWaiter) {
+      leaveWaiter();
+    }
+  });
+
+  // ---------- step 1: camera and microphone ----------
+  function stepCamera() {
+    setStep(1, 'run', 'Running…');
+    show('liveCard', true);
+    live('Step 1 · Camera and microphone', 'Allow the camera and microphone when your browser asks.');
+    try {
+      var pol = document.permissionsPolicy || document.featurePolicy;
+      if (pol && pol.allowsFeature) R.cameraPolicy = pol.allowsFeature('camera') ? 'Allowed' : 'Blocked';
+    } catch (e) { /* not available in this browser */ }
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      R.camera = 'Fail';
+      R.cameraError = 'This browser has no camera access (getUserMedia missing)';
+      setStep(1, 'fail', 'Failed');
+      return Promise.resolve(false);
+    }
+    return navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 360 } },
+      audio: { echoCancellation: true, noiseSuppression: true }
+    }).then(function (s) {
+      stream = s;
+      $('preview').srcObject = s;
+      R.camera = 'Pass';
+      return checkMic(s).then(function (heard) {
+        R.micSound = heard ? 'Yes' : 'No';
+        setStep(1, 'pass', heard ? 'Passed' : 'Passed (no sound heard)');
+        return true;
+      });
+    }).catch(function (e) {
+      R.camera = 'Fail';
+      R.cameraError = errText(e);
+      setStep(1, 'fail', 'Failed');
+      live('Step 1 · Camera and microphone', 'The camera could not start: ' + R.cameraError);
+      return false;
+    });
+  }
+
+  function checkMic(s) {
+    instruct('Say "Hello, this is a SmartScreen test" out loud.');
+    try {
+      if (!audioCtx) return wait(3000).then(function () { instruct(''); return false; });
+      if (audioCtx.state === 'suspended' && audioCtx.resume) audioCtx.resume();
+      var src = audioCtx.createMediaStreamSource(s);
+      var an = audioCtx.createAnalyser();
+      an.fftSize = 1024;
+      src.connect(an);
+      var data = new Uint8Array(an.fftSize);
+      var heard = false;
+      var started = Date.now();
+      return new Promise(function (resolve) {
+        (function tick() {
+          an.getByteTimeDomainData(data);
+          var sum = 0;
+          for (var i = 0; i < data.length; i++) { var v = (data[i] - 128) / 128; sum += v * v; }
+          var rms = Math.sqrt(sum / data.length);
+          $('meter').style.width = Math.min(100, Math.round(rms * 400)) + '%';
+          if (rms > 0.04) heard = true;
+          if (Date.now() - started < 4000) { requestAnimationFrame(tick); }
+          else { instruct(''); resolve(heard); }
+        })();
+      });
+    } catch (e) {
+      instruct('');
+      return Promise.resolve(false);
+    }
+  }
+
+  // ---------- step 2: face detection ----------
+  function stepFaces() {
+    setStep(2, 'run', 'Loading…');
+    live('Step 2 · Face detection', 'Loading the face checker. This can take up to 20 seconds the first time.');
+    var loader = import(MEDIAPIPE_BASE + '/vision_bundle.mjs').then(function (vision) {
+      return vision.FilesetResolver.forVisionTasks(MEDIAPIPE_BASE + '/wasm').then(function (fileset) {
+        var tryModel = function (i, lastErr) {
+          if (i >= FACE_MODELS.length) return Promise.reject(lastErr || new Error('No face model could be loaded'));
+          return vision.FaceDetector.createFromOptions(fileset, {
+            baseOptions: { modelAssetPath: FACE_MODELS[i], delegate: 'CPU' },
+            runningMode: 'VIDEO',
+            minDetectionConfidence: 0.5
+          }).catch(function (e) { return tryModel(i + 1, e); });
+        };
+        return tryModel(0, null);
+      });
+    });
+    return withTimeout(loader, 30000, 'Loading the face checker').then(function (det) {
+      faceDetector = det;
+      setStep(2, 'run', 'Running…');
+      live('Step 2 · Face detection', 'Keep your face in view. If someone is nearby, ask them to lean into the picture for a moment (optional).');
+      startFaceLoop();
+      return wait(8000).then(function () {
+        R.faceDetection = R.maxFaces >= 1 ? 'Pass' : 'Fail (no face seen)';
+        setStep(2, R.maxFaces >= 1 ? 'pass' : 'fail', R.maxFaces >= 1 ? 'Passed' : 'No face seen');
+      });
+    }).catch(function (e) {
+      R.faceDetection = 'Fail: ' + errText(e);
+      setStep(2, 'fail', 'Failed');
+    });
+  }
+
+  function startFaceLoop() {
+    faceLoopOn = true;
+    var video = $('preview');
+    var lastTime = -1;
+    (function loop() {
+      if (!faceLoopOn || !faceDetector) return;
+      if (video.readyState >= 2 && video.currentTime !== lastTime) {
+        lastTime = video.currentTime;
+        try {
+          var res = faceDetector.detectForVideo(video, performance.now());
+          var n = res && res.detections ? res.detections.length : 0;
+          if (n > R.maxFaces) R.maxFaces = n;
+          $('faceBadge').textContent = 'Faces: ' + n;
+        } catch (e) { /* skip this frame */ }
+      }
+      setTimeout(loop, 250);
+    })();
+  }
+
+  // ---------- step 3: record ----------
+  function stepRecord() {
+    setStep(3, 'run', 'Recording…');
+    var mime = pickMimeType();
+    if (mime === null) {
+      R.recFormat = 'MediaRecorder not supported';
+      setStep(3, 'fail', 'Not supported');
+      return Promise.resolve(null);
+    }
+    live('Step 3 · Record 15 seconds', 'Talk naturally for 15 seconds, for example about your day.');
+    var chunks = [];
+    var rec;
+    try {
+      var opts = { videoBitsPerSecond: 250000, audioBitsPerSecond: 48000 };
+      if (mime) opts.mimeType = mime;
+      rec = new MediaRecorder(stream, opts);
+    } catch (e) {
+      R.recFormat = 'Recorder error: ' + errText(e);
+      setStep(3, 'fail', 'Failed');
+      return Promise.resolve(null);
+    }
+    R.recFormat = rec.mimeType || mime || 'browser default';
+    return new Promise(function (resolve) {
+      var started = 0;
+      rec.ondataavailable = function (ev) { if (ev.data && ev.data.size) chunks.push(ev.data); };
+      rec.onerror = function (ev) {
+        R.recFormat += ' (error: ' + errText(ev.error) + ')';
+      };
+      rec.onstop = function () {
+        $('recBadge').style.display = 'none';
+        var type = (rec.mimeType || mime || 'video/webm').split(';')[0];
+        var blob = new Blob(chunks, { type: type });
+        R.recSeconds = Math.round((Date.now() - started) / 100) / 10;
+        R.recSizeKB = Math.round(blob.size / 1024);
+        if (!blob.size) { setStep(3, 'fail', 'Empty recording'); resolve(null); return; }
+        setStep(3, 'pass', 'Recorded');
+        resolve(blob);
+      };
+      rec.start(1000);
+      started = Date.now();
+      var left = RECORD_SECONDS;
+      var badge = $('recBadge');
+      badge.style.display = 'block';
+      badge.textContent = '● REC ' + left;
+      var t = setInterval(function () {
+        left -= 1;
+        badge.textContent = '● REC ' + Math.max(left, 0);
+        if (left <= 0) { clearInterval(t); try { rec.stop(); } catch (e) { /* already stopped */ } }
+      }, 1000);
+    });
+  }
+
+  function askPlayback(blob) {
+    live('Step 3 · Check your recording', '');
+    show('previewWrap', false);
+    show('meterWrap', false);
+    var pb = $('playback');
+    pb.src = URL.createObjectURL(blob);
+    show('playbackBox', true);
+    return new Promise(function (resolve) {
+      $('playYes').onclick = function () { R.playback = 'Yes'; show('playbackBox', false); resolve(); };
+      $('playNo').onclick = function () { R.playback = 'No'; show('playbackBox', false); resolve(); };
+    });
+  }
+
+  // ---------- step 4: save recording ----------
+  function stepUploadRecording(blob) {
+    setStep(4, 'run', 'Uploading…');
+    live('Step 4 · Saving the recording to Drive', 'Please wait.');
+    var t0 = Date.now();
+    return blobToBase64(blob).then(function (b64) {
+      return withTimeout(server('saveRecording', { base64: b64, mimeType: blob.type, label: R.label }), 120000, 'Saving the recording');
+    }).then(function (res) {
+      R.recUploadSeconds = Math.round((Date.now() - t0) / 100) / 10;
+      if (res && res.ok) {
+        R.recUpload = 'Pass';
+        R.recUrl = res.url;
+        setStep(4, 'pass', 'Saved');
+      } else {
+        R.recUpload = 'Fail: ' + (res && res.error);
+        setStep(4, 'fail', 'Failed');
+      }
+    }).catch(function (e) {
+      R.recUpload = 'Fail: ' + errText(e);
+      setStep(4, 'fail', 'Failed');
+    });
+  }
+
+  // ---------- step 5: large upload ----------
+  function stepLargeUpload() {
+    setStep(5, 'run', 'Uploading…');
+    live('Step 5 · Large upload', 'Sending an 8 MB test file, the size of one long answer. On mobile data this can take a minute.');
+    var bytes = new Uint8Array(LARGE_UPLOAD_BYTES);
+    for (var i = 0; i < bytes.length; i += 65536) {
+      crypto.getRandomValues(bytes.subarray(i, Math.min(i + 65536, bytes.length)));
+    }
+    var t0 = Date.now();
+    return blobToBase64(new Blob([bytes])).then(function (b64) {
+      return withTimeout(server('receiveLargeUpload', { base64: b64 }), 240000, 'The large upload');
+    }).then(function (res) {
+      var secs = (Date.now() - t0) / 1000;
+      R.largeUploadSeconds = Math.round(secs * 10) / 10;
+      if (res && res.ok && res.bytes === LARGE_UPLOAD_BYTES) {
+        R.largeUpload = 'Pass';
+        R.uploadMbps = Math.round((LARGE_UPLOAD_BYTES * 8 / 1e6 / secs) * 10) / 10;
+        setStep(5, 'pass', 'Passed');
+      } else {
+        R.largeUpload = 'Fail: ' + (res && res.error ? res.error : 'size did not match');
+        setStep(5, 'fail', 'Failed');
+      }
+    }).catch(function (e) {
+      R.largeUpload = 'Fail: ' + errText(e);
+      setStep(5, 'fail', 'Failed');
+    });
+  }
+
+  // ---------- step 6: leaving the page ----------
+  function stepLeave() {
+    setStep(6, 'run', 'Waiting…');
+    live('Step 6 · Leaving the page', '');
+    show('previewWrap', false);
+    show('meterWrap', false);
+    show('leaveBox', true);
+    var before = R.leftPage;
+    return new Promise(function (resolve) {
+      var done = function (skipped) {
+        leaveWaiter = null;
+        show('leaveBox', false);
+        if (skipped) setStep(6, 'skip', 'Skipped');
+        else setStep(6, 'pass', 'Noticed');
+        resolve();
+      };
+      leaveWaiter = function () {
+        if (R.leftPage > before) { $('leaveStatus').textContent = 'Welcome back. Noticed.'; done(false); }
+      };
+      $('leaveSkip').onclick = function () { done(true); };
+    });
+  }
+
+  // ---------- results ----------
+  function finish() {
+    faceLoopOn = false;
+    if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
+    if (audioCtx && audioCtx.close) { try { audioCtx.close(); } catch (e) { /* ignore */ } }
+    R.fullscreen = (document.fullscreenEnabled || document.webkitFullscreenEnabled) ? 'Yes' : 'No';
+
+    var essentials = R.camera === 'Pass' && R.recSizeKB > 0 && R.playback === 'Yes' &&
+                     R.recUpload === 'Pass' && R.largeUpload === 'Pass';
+    R.overall = essentials ? 'PASS' : 'FAIL';
+
+    show('liveCard', false);
+    show('resultCard', true);
+    var ov = $('overall');
+    ov.className = 'overall ' + (essentials ? 'pass' : 'fail');
+    ov.textContent = essentials
+      ? 'This device can run SmartScreen interviews.'
+      : 'Something did not work on this device. Please save the results so we can see why.';
+
+    var rows = [
+      ['Camera and microphone', R.camera + (R.cameraError ? ' (' + R.cameraError + ')' : '')],
+      ['Camera allowed by page', R.cameraPolicy],
+      ['Voice detected', R.micSound],
+      ['Face detection', R.faceDetection + (R.maxFaces ? ' · most faces at once: ' + R.maxFaces : '')],
+      ['Recording format', R.recFormat || '–'],
+      ['Recording length and size', R.recSizeKB ? R.recSeconds + ' s · ' + R.recSizeKB + ' KB' : '–'],
+      ['You saw and heard yourself', R.playback],
+      ['Recording saved to Drive', R.recUpload + (R.recUploadSeconds ? ' · ' + R.recUploadSeconds + ' s' : '')],
+      ['Large upload (8 MB)', R.largeUpload + (R.largeUploadSeconds ? ' · ' + R.largeUploadSeconds + ' s' : '')],
+      ['Upload speed', R.uploadMbps ? R.uploadMbps + ' Mbps' : '–'],
+      ['Times you left the page', String(R.leftPage)],
+      ['Full-screen available', R.fullscreen]
+    ];
+    var tbl = $('resultTable');
+    tbl.innerHTML = '';
+    rows.forEach(function (r) {
+      var tr = document.createElement('tr');
+      var a = document.createElement('td'); a.textContent = r[0];
+      var b = document.createElement('td'); b.textContent = r[1];
+      tr.appendChild(a); tr.appendChild(b); tbl.appendChild(tr);
+    });
+  }
+
+  $('saveBtn').onclick = function () {
+    var btn = $('saveBtn');
+    btn.disabled = true;
+    R.notes = $('notes').value.trim();
+    $('saveStatus').textContent = 'Saving…';
+    server('saveResults', { results: R }).then(function (res) {
+      if (res && res.ok) {
+        $('saveStatus').textContent = 'Saved. Thank you. You can close this page.';
+      } else {
+        btn.disabled = false;
+        $('saveStatus').textContent = 'Could not save: ' + (res && res.error) + '. Please try again.';
+      }
+    }).catch(function (e) {
+      btn.disabled = false;
+      $('saveStatus').textContent = 'Could not save: ' + errText(e) + '. Please try again.';
+    });
+  };
+
+  // ---------- connection check when the page opens ----------
+  var engineOk = false;
+  (function checkEngine() {
+    var msg = $('engineStatus');
+    if (!backendConfigured()) {
+      msg.textContent = 'Setup not finished: the Web app URL has not been pasted into this page yet.';
+      msg.style.color = 'var(--bad)';
+      return;
+    }
+    fetch(BACKEND_URL, { redirect: 'follow' }).then(function (r) { return r.json(); }).then(function (j) {
+      engineOk = !!(j && j.ok);
+      msg.textContent = engineOk ? 'Connected to the EaseBiz engine.' : 'The EaseBiz engine did not reply correctly.';
+      msg.style.color = engineOk ? 'var(--good)' : 'var(--bad)';
+    }).catch(function (e) {
+      msg.textContent = 'Cannot reach the EaseBiz engine (' + errText(e) + '). Check that the Web app access is set to "Anyone".';
+      msg.style.color = 'var(--bad)';
+    });
+  })();
+
+  // ---------- run ----------
+  $('startBtn').onclick = function () {
+    if (!engineOk) {
+      $('startError').textContent = 'Please wait for "Connected to the EaseBiz engine" above the button, then try again.';
+      return;
+    }
+    var label = $('label').value.trim();
+    var type = $('deviceType').value;
+    if (!label || !type) {
+      $('startError').textContent = 'Please enter your role and device, and choose the device type.';
+      return;
+    }
+    // Create the sound checker inside the tap itself; iPhones only allow sound processing started by a tap.
+    try {
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      if (Ctx) { audioCtx = new Ctx(); if (audioCtx.resume) audioCtx.resume(); }
+    } catch (e) { audioCtx = null; }
+    R.label = label;
+    R.deviceType = type;
+    show('startCard', false);
+    show('progressCard', true);
+
+    stepCamera().then(function (camOk) {
+      if (!camOk) {
+        ['2', '3', '4'].forEach(function (n) { setStep(n, 'skip', 'Skipped'); });
+        return null;
+      }
+      return stepFaces().then(function () { return stepRecord(); }).then(function (blob) {
+        if (!blob) { setStep(4, 'skip', 'Skipped'); return null; }
+        return askPlayback(blob).then(function () { return stepUploadRecording(blob); });
+      });
+    }).then(function () {
+      faceLoopOn = false;
+      return stepLargeUpload();
+    }).then(function () {
+      return stepLeave();
+    }).then(finish).catch(function (e) {
+      R.notes = 'Unexpected error: ' + errText(e);
+      finish();
+    });
+  };
+})();
+</script>
+</body>
+</html>
