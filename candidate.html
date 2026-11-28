@@ -40,7 +40,15 @@
       </ul>
     </div>
     <p class="muted">Sit in a quiet, well-lit place where you will not be disturbed. Keep your phone charged or plugged in.</p>
-    <button id="btnWelcome">Begin</button>
+    <div id="schedInfo" class="notice good hidden"></div>
+    <button id="btnWelcome">Start now</button>
+    <button id="btnSchedule" class="secondary">Schedule for later</button>
+    <div id="schedBox" class="hidden">
+      <label for="schedWhen">Choose a date and time (before the deadline)</label>
+      <input type="datetime-local" id="schedWhen">
+      <p class="small" id="schedError" style="color:var(--bad)"></p>
+      <button id="btnSchedSave">Confirm and add to my calendar</button>
+    </div>
   </section>
 
   <!-- 2. Consent -->
@@ -167,6 +175,7 @@
       <div class="warn-overlay hidden" id="liveWarn">Please keep your face clearly in view</div>
     </div>
     <p><span class="timer" id="qTimer">0:30</span> <span class="muted" id="qTimerLabel">to think</span></p>
+    <button id="btnHear" class="secondary">🔊 Hear the question again</button>
     <button id="btnAnswerNow">Start answering now</button>
     <button id="btnFinishAnswer" class="hidden">Finish answer</button>
     <div id="uploadBox" class="notice hidden">
@@ -174,6 +183,17 @@
       <p class="center" id="uploadText">Saving your answer… please keep this page open.</p>
       <button id="btnRetryUpload" class="hidden">Try again</button>
     </div>
+  </section>
+
+  <!-- Next round booking -->
+  <section class="screen card hidden" id="scrBook">
+    <h1>Next round: choose your interview slot</h1>
+    <p>Congratulations, <span id="bName"></span>. You have been shortlisted for the next interview round for the <strong id="bRole"></strong> position.</p>
+    <p id="bMode" class="muted"></p>
+    <div id="bSlots"></div>
+    <p class="small" id="bError" style="color:var(--bad)"></p>
+    <button id="btnBook">Confirm this slot</button>
+    <div id="bDone" class="notice good hidden"></div>
   </section>
 
   <!-- 9. Thank you -->
@@ -269,6 +289,7 @@
     if (!r.ok) { handleCode({ code: r.code }); if (r.help) $('problemHelp').innerHTML = helpHtml(r.help); return; }
     info = r;
     var c = r.candidate;
+    if (c.done && c.booking) { showBooking(c.booking); return; }
     if (c.done) { go('scrThanks'); $('ratingBox').classList.add('hidden'); return; }
     if (c.quickFitHold) { $('holdHelp').innerHTML = helpHtml(); go('scrHold'); return; }
     fillWelcome();
@@ -280,7 +301,44 @@
     if (!handleCode(e)) problem('We could not load your interview', SS.errText(e) + ' Please refresh the page in a minute.');
   });
 
+  function showBooking(bk) {
+    $('bName').textContent = info.candidate.firstName;
+    $('bRole').textContent = info.role.title;
+    $('bMode').textContent = bk.mode + (bk.place ? ' · ' + bk.place : '') + ' · about ' + bk.minutes + ' minutes';
+    if (bk.booked) {
+      SS.show('bSlots', false); SS.show('btnBook', false);
+      $('bDone').innerHTML = '<strong>Your interview is confirmed for ' + SS.esc(SS.fmtDate(bk.booked.at)) + '.</strong><br>A calendar invitation has been sent to you.';
+      SS.show('bDone', true);
+    } else {
+      $('bSlots').innerHTML = bk.options.map(function (o, i) {
+        return '<label class="check"><input type="radio" name="slot" value="' + i + '"> <span>' + SS.esc(SS.fmtDate(o)) + '</span></label>';
+      }).join('');
+    }
+    go('scrBook');
+  }
+  $('btnBook').onclick = function () {
+    var sel = document.querySelector('input[name=slot]:checked');
+    if (!sel) { $('bError').textContent = 'Please choose a slot.'; return; }
+    var btn = this; btn.disabled = true; btn.textContent = 'Confirming…';
+    SS.api('cand.book', { t: token, index: Number(sel.value) }).then(function (r) {
+      info.candidate.booking.booked = r.booked; showBooking(info.candidate.booking);
+    }).catch(function (e) { btn.disabled = false; btn.textContent = 'Confirm this slot'; $('bError').textContent = SS.errText(e); });
+  };
+
+  function showScheduled(iso, calLink) {
+    $('schedInfo').innerHTML = 'Scheduled for <strong>' + SS.esc(SS.fmtDate(iso)) + '</strong>.' +
+      (info.candidate.hasEmail ? ' A calendar invitation has been sent to your email.' : '') +
+      (calLink ? ' <a href="' + SS.esc(calLink) + '" target="_blank" rel="noopener">Add to Google Calendar</a>' : '') +
+      '<br>Open this same link on this device at that time. You may also start now.';
+    SS.show('schedInfo', true); SS.show('schedBox', false);
+  }
+
   function fillWelcome() {
+    if (info.candidate.scheduledAt) showScheduled(info.candidate.scheduledAt);
+    var pad = function (n) { return ('0' + n).slice(-2); };
+    var local = function (d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+    $('schedWhen').min = local(new Date(Date.now() + 15 * 60000));
+    $('schedWhen').max = local(new Date(new Date(info.candidate.deadline).getTime() - 30 * 60000));
     $('wName').textContent = info.candidate.firstName;
     $('wRole').textContent = info.role.title;
     $('wCompany').textContent = info.role.company;
@@ -292,9 +350,9 @@
     $('cClient').textContent = info.role.clientName || 'the hiring company (named to you by your recruiter before any sharing)';
     Array.prototype.forEach.call(document.querySelectorAll('.cVideoDays'), function (el) { el.textContent = info.company.videoDays || 60; });
     $('consentNotice').innerHTML =
-      '<p><strong>What we record:</strong> your video and audio answers, a photo of you holding your ID, and a short room scan. ' +
+      '<p><strong>What we record:</strong> your video and audio answers, three still images from each answer, a photo of you holding your ID, and a short room scan. ' +
       'We also note technical events, such as leaving the interview screen. We use these only to assess your fit for the ' + SS.esc(info.role.title) + ' role.</p>' +
-      '<p><strong>Who decides:</strong> a trained ' + SS.esc(co) + ' reviewer scores your answers. No automated system makes decisions about you, and we do not analyse your face, emotions or voice.</p>' +
+      '<p><strong>How your answers are assessed:</strong> your answers are transcribed, and an AI system (Anthropic\'s Claude) prepares a first assessment of what you said against the job requirements, together with simple measurements such as speaking pace and whether you are facing the camera. A trained ' + SS.esc(co) + ' reviewer checks this and makes all decisions. We do not use AI to judge your emotions, personality or appearance.</p>' +
       '<p><strong>Who sees it:</strong> our recruitment team and, only if you agree below, the hiring company for this role (view-only, for ' + SS.esc(info.company.clientDays || 30) + ' days). Your ID photo is never shared with the hiring company.</p>' +
       '<p><strong>How long we keep it:</strong> ID photo and room scan, ' + SS.esc(info.company.idDays || 30) + ' days; video, ' + SS.esc(info.company.videoDays || 60) + ' days after the interview; written assessment, 12 months.</p>' +
       '<p><strong>Your choices:</strong> you may withdraw consent, or ask to see or delete your data, at any time by writing to ' +
@@ -302,6 +360,15 @@
   }
 
   $('btnWelcome').onclick = function () { go('scrConsent'); };
+  $('btnSchedule').onclick = function () { SS.show('schedBox', true); };
+  $('btnSchedSave').onclick = function () {
+    var v = $('schedWhen').value;
+    if (!v) { $('schedError').textContent = 'Please choose a date and time.'; return; }
+    var btn = this; btn.disabled = true; $('schedError').textContent = '';
+    call('cand.schedule', { when: new Date(v).toISOString() }).then(function (r) {
+      btn.disabled = false; showScheduled(r.scheduledAt, r.calendarLink);
+    }).catch(function (e) { btn.disabled = false; if (!handleCode(e)) $('schedError').textContent = SS.errText(e); });
+  };
 
   // ---------------- consent ----------------
   function consentState() { $('btnConsent').disabled = !($('cRecord').checked && $('cShare').checked); }
@@ -381,10 +448,53 @@
     return Promise.race([p, new Promise(function (_, rej) { setTimeout(function () { rej(new Error('timeout')); }, 30000); })])
       .then(function (d) { detector = d; return d; });
   }
+  var lastFacing = null;
   function countFaces(video) {
     if (!detector || video.readyState < 2) return -1;
-    try { var r = detector.detectForVideo(video, performance.now()); return r && r.detections ? r.detections.length : 0; }
-    catch (e) { return -1; }
+    try {
+      var r = detector.detectForVideo(video, performance.now());
+      var d = r && r.detections ? r.detections : [];
+      lastFacing = null;
+      if (d.length === 1 && d[0].keypoints && d[0].keypoints.length >= 3) {
+        // keypoints: 0 right eye, 1 left eye, 2 nose tip (normalised). Head turned away when the nose is far from the eyes' midpoint.
+        var k = d[0].keypoints, mid = (k[0].x + k[1].x) / 2, span = Math.abs(k[0].x - k[1].x) || 0.0001;
+        lastFacing = Math.abs(k[2].x - mid) / span < 0.35;
+      }
+      return d.length;
+    } catch (e) { return -1; }
+  }
+  // per-answer measurements
+  var analyser = null, audioBuf = null, M = null;
+  function audioLevel() {
+    if (!analyser) return -1;
+    analyser.getByteTimeDomainData(audioBuf);
+    var sum = 0; for (var i = 0; i < audioBuf.length; i++) { var v = (audioBuf[i] - 128) / 128; sum += v * v; }
+    return Math.sqrt(sum / audioBuf.length);
+  }
+  function metricsStart() { M = { samples: 0, face: 0, facing: 0, faceKnown: 0, silent: 0, audioKnown: 0, frames: [] }; }
+  function metricsSample(n) {
+    if (!M) return;
+    M.samples++;
+    if (n >= 0) { M.faceKnown++; if (n >= 1) M.face++; if (lastFacing) M.facing++; }
+    var lv = audioLevel();
+    if (lv >= 0) { M.audioKnown++; if (lv < 0.02) M.silent++; }
+  }
+  function grabFrame() {
+    if (!M) return;
+    try {
+      var v = $('liveVideo'), w = 320, h = Math.round(w * ((v.videoHeight || 360) / (v.videoWidth || 640)));
+      var cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+      cv.getContext('2d').drawImage(v, 0, 0, w, h);
+      M.frames.push(cv.toDataURL('image/jpeg', 0.6).split(',')[1]);
+    } catch (e) { /* frame skipped */ }
+  }
+  function metricsEnd(seconds) {
+    var out = { samples: M ? M.samples : 0 };
+    if (M && M.faceKnown) { out.faceVisiblePct = Math.round(M.face / M.faceKnown * 100); out.facingCameraPct = Math.round(M.facing / M.faceKnown * 100); }
+    if (M && M.audioKnown) { out.silencePct = Math.round(M.silent / M.audioKnown * 100); out.speakingSec = Math.round(seconds * (1 - M.silent / M.audioKnown)); }
+    var frames = M ? M.frames.slice(0, 3) : [];
+    M = null;
+    return { metrics: out, frames: frames };
   }
 
   // ---------------- system check ----------------
@@ -593,8 +703,13 @@
       });
     });
     var v = $('liveVideo');
+    try {
+      ensureAudio();
+      if (audioCtx) { analyser = audioCtx.createAnalyser(); analyser.fftSize = 1024; audioBuf = new Uint8Array(analyser.fftSize); audioCtx.createMediaStreamSource(stream).connect(analyser); }
+    } catch (e) { analyser = null; }
     faceTimer = setInterval(function () {
       var n = countFaces(v);
+      metricsSample(n);
       if (n < 0) return;
       var nowT = Date.now();
       if (n === 0) {
@@ -633,8 +748,41 @@
     return type + ' · ' + br + inApp;
   }
 
+  // ---------------- voice ----------------
+  var voice = null;
+  function pickVoice() {
+    if (!window.speechSynthesis) return;
+    var vs = speechSynthesis.getVoices();
+    voice = vs.filter(function (v) { return /en[-_]IN/i.test(v.lang); })[0] || vs.filter(function (v) { return /^en/i.test(v.lang); })[0] || null;
+  }
+  if (window.speechSynthesis) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+  var voiceOk = !!window.speechSynthesis;
+  function speak(text, onEnd) {
+    if (!voiceOk) { if (onEnd) onEnd(); return; }
+    try {
+      if (!voice) pickVoice();
+      speechSynthesis.cancel();
+      // Small delay after cancel: some browsers drop speech queued immediately after cancelling.
+      setTimeout(function () {
+        try {
+          var u = new SpeechSynthesisUtterance(text);
+          if (voice) u.voice = voice;
+          u.lang = voice ? voice.lang : 'en-IN'; u.rate = 0.95; u.volume = 1;
+          u.onend = function () { if (onEnd) onEnd(); };
+          u.onerror = function () { if (onEnd) onEnd(); };
+          speechSynthesis.resume(); // Chrome can leave speech paused; resume makes sure it plays
+          speechSynthesis.speak(u);
+        } catch (e) { if (onEnd) onEnd(); }
+      }, 120);
+    } catch (e) { if (onEnd) onEnd(); }
+  }
+  function stopSpeaking() { try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) { /* ignore */ } }
+
   $('btnStart').onclick = function () {
     var btn = this; btn.disabled = true;
+    // A real spoken sentence inside the tap unlocks speech on phones (iPhone and Android need a tap first).
+    speak('Your interview is starting. Each question will be read out to you, and also shown on the screen.');
+    if (!voiceOk) SS.toast('Your browser cannot read questions aloud. Please read each question on the screen.');
     pushEvent('device', { detail: deviceLabel() + (detector ? '' : ' · automatic face check unavailable') });
     call('cand.start', {}).then(function () {
       var el = document.documentElement;
@@ -659,6 +807,8 @@
       currentQ = q.qNo;
       $('qPos').textContent = 'Question ' + q.position + ' of ' + q.total;
       $('qText').textContent = q.text;
+      setTimeout(function () { speak('Question ' + q.position + '. ' + q.text); }, 300);
+      $('btnHear').onclick = function () { speak(q.text); };
       thinkPhase(q);
     }).catch(function (e) {
       if (handleCode(e)) return;
@@ -682,10 +832,14 @@
       if (left <= 0) { clearInterval(t); answerPhase(q); }
     }, 1000);
     $('btnAnswerNow').onclick = function () { clearInterval(t); answerPhase(q); };
+    SS.show('btnHear', true);
   }
 
   function answerPhase(q) {
-    SS.show('btnAnswerNow', false);
+    stopSpeaking();
+    SS.show('btnAnswerNow', false); SS.show('btnHear', false);
+    metricsStart();
+    var frameTimers = [5000, 25000, 60000].filter(function (ms) { return ms < q.answerSec * 1000; }).map(function (ms) { return setTimeout(grabFrame, ms); });
     $('qPhase').textContent = 'Recording';
     $('qPhase').className = 'pill bad';
     $('qTimerLabel').textContent = 'left to answer';
@@ -697,8 +851,12 @@
     $('btnFinishAnswer').onclick = function () { $('btnFinishAnswer').disabled = true; stopRecording(); };
     recordFor(q.answerSec, null, function (left) { $('qTimer').textContent = fmt(left); }).then(function (res) {
       SS.show('liveRec', false); SS.show('btnFinishAnswer', false);
+      frameTimers.forEach(clearTimeout);
+      if (M && !M.frames.length) grabFrame();
       flushMissingFace();
-      uploadAnswer(q, res.blob, Math.round((Date.now() - startedAt) / 1000), 0);
+      var secs = Math.round((Date.now() - startedAt) / 1000);
+      var extra = metricsEnd(secs);
+      uploadAnswer(q, res.blob, secs, 0, extra);
     }).catch(function (e) {
       SS.show('liveRec', false); SS.show('btnFinishAnswer', false);
       $('uploadText').textContent = 'The recording stopped unexpectedly: ' + SS.errText(e) + ' Please refresh the page; you will continue from this question.';
@@ -706,23 +864,24 @@
     });
   }
 
-  function uploadAnswer(q, blob, seconds, attempt) {
+  function uploadAnswer(q, blob, seconds, attempt, extra) {
     $('qPhase').textContent = 'Saving';
     $('qPhase').className = 'pill info';
     $('uploadText').textContent = 'Saving your answer… please keep this page open.';
     SS.show('uploadBox', true); SS.show('btnRetryUpload', false);
     var evs = takeEvents();
     SS.blobToBase64(blob).then(function (b64) {
-      return call('cand.answer', { qNo: q.qNo, base64: b64, mime: blob.type, seconds: seconds, events: evs }, 180000);
+      return call('cand.answer', { qNo: q.qNo, base64: b64, mime: blob.type, seconds: seconds, events: evs,
+                                   metrics: extra.metrics, frames: extra.frames }, 180000);
     }).then(function () {
       nextQuestion();
     }).catch(function (e) {
       events = evs.concat(events); // keep events for the next attempt
       if (handleCode(e)) return;
-      if (attempt < 2) { setTimeout(function () { uploadAnswer(q, blob, seconds, attempt + 1); }, 3000); return; }
+      if (attempt < 2) { setTimeout(function () { uploadAnswer(q, blob, seconds, attempt + 1, extra); }, 3000); return; }
       $('uploadText').textContent = 'Your answer could not be saved yet (' + SS.errText(e) + '). Please check your internet connection and tap Try again. Your recording is kept on this page.';
       SS.show('btnRetryUpload', true);
-      $('btnRetryUpload').onclick = function () { uploadAnswer(q, blob, seconds, 0); };
+      $('btnRetryUpload').onclick = function () { uploadAnswer(q, blob, seconds, 0, extra); };
     });
   }
 

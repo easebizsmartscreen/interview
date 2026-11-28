@@ -721,7 +721,7 @@
   document.addEventListener('input', function (ev) { if (ev.target.closest && ev.target.closest('#cAnswers')) updateOverall(); });
 
   // ---------------- system assessment (AI) ----------------
-  var ASR_LIB = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2/dist/transformers.web.min.js';
+  var ASR_LIB = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2/dist/transformers.min.js'; // self-contained build (the web build needs a separate runtime import)
   var ASR_MODELS = ['onnx-community/whisper-base.en', 'Xenova/whisper-base.en'];
   var asr = null;
   function aiLine(qNo) {
