@@ -436,7 +436,7 @@
     if (questions.length && !confirm('Replace the current questions with a new AI-drafted set?')) return;
     busy(btn, true, 'Drafting… (about a minute)');
     $('qList').innerHTML = '<div class="spinner"></div><p class="center muted">Drafting questions from the JD…</p>';
-    api('con.role.generate', { roleId: role.roleId }, 150000).then(function (r) {
+    api('con.role.generate', { roleId: role.roleId }, 240000).then(function (r) {
       busy(btn, false); applyRole(r); renderQuestions(r.gaps); tab('tabQuestions'); SS.toast('Question set drafted. Check it, then submit for approval.', 'good');
     }).catch(function (e) { busy(btn, false); renderQuestions(); SS.toast(SS.errText(e), 'bad'); });
   }
@@ -870,6 +870,36 @@
   }
   $('fQCount').onchange = estimate; $('fLevel').onchange = estimate;
 
+  // ---------------- instant pick-up of facts written in the brief ----------------
+  var CITIES = ['Ahmedabad', 'Gandhinagar', 'Vadodara', 'Baroda', 'Surat', 'Rajkot', 'Mumbai', 'Navi Mumbai', 'Thane', 'Pune', 'Delhi', 'New Delhi', 'Gurugram', 'Gurgaon',
+    'Noida', 'Bengaluru', 'Bangalore', 'Chennai', 'Hyderabad', 'Kolkata', 'Jaipur', 'Indore', 'Bhopal', 'Lucknow', 'Chandigarh', 'Nagpur', 'Kochi', 'Coimbatore', 'Goa', 'Remote'];
+  function briefFacts(t) {
+    var f = {}, low = t.toLowerCase(), m;
+    // CTC: "4 lacs", "4 lakh", "4 LPA", "3-4.5 LPA", "budget of 4 lacs", "4.5L", "₹6 lakh"
+    m = low.match(/(\d+(?:\.\d+)?)\s*(?:-|to|–)\s*(\d+(?:\.\d+)?)\s*(?:lpa|lacs?|lakhs?|l\b)/);
+    if (m) { f.ctcMin = m[1]; f.ctcMax = m[2]; }
+    else if ((m = low.match(/(\d+(?:\.\d+)?)\s*(?:lpa|lacs?|lakhs?|l\b)/))) { f.ctcMax = m[1]; }
+    // Notice: "notice period 30 days", "30 days notice", "immediate joiner"
+    if ((m = low.match(/notice(?:\s*period)?\s*(?:of|:|up to|upto|max(?:imum)?)?\s*(\d{1,3})\s*days?/)) || (m = low.match(/(\d{1,3})\s*days?\s*notice/))) f.notice = m[1];
+    else if (/immediate/.test(low)) f.notice = '0';
+    // Experience -> level
+    if ((m = low.match(/(\d+(?:\.\d+)?)\s*(?:\+|-|to|–)?\s*(\d+(?:\.\d+)?)?\s*(?:\+\s*)?(?:years?|yrs?)/))) {
+      var lo = Number(m[1]), hi = Number(m[2] || m[1]);
+      f.level = /head|director|vp|vice president|general manager|chief/.test(low) || lo >= 12 ? 'Leadership' : hi <= 2 ? 'Entry' : 'Mid';
+    }
+    // Location
+    CITIES.forEach(function (c) { if (!f.location && new RegExp('\\b' + c.toLowerCase() + '\\b').test(low)) f.location = c === 'Baroda' ? 'Vadodara' : c === 'Bangalore' ? 'Bengaluru' : c === 'Gurgaon' ? 'Gurugram' : c; });
+    // Title: words before " for " / " with " / ",", if it reads like a job title
+    if ((m = t.match(/^\s*([A-Za-z][A-Za-z &\/-]{3,60}?)(?=\s+(?:for|with|at|in)\b|,|\.|$)/))) f.title = m[1].trim();
+    return f;
+  }
+  function applyFacts(f) {
+    var n = 0, put = function (id, v) { if (v !== undefined && v !== '' && !$(id).value.trim()) { $(id).value = v; n++; } };
+    put('fTitle', f.title); put('fLocation', f.location); put('fCtcMin', f.ctcMin); put('fCtcMax', f.ctcMax); put('fNotice', f.notice);
+    if (f.level) { $('fLevel').value = f.level; estimate(); }
+    return n;
+  }
+
   // ---------------- brief -> JD -> questions ----------------
   $('btnFromBrief').onclick = function () {
     var b = this;
@@ -877,9 +907,12 @@
     if (!$('fClient').value.trim()) { $('detailsError').textContent = 'Enter the client company first.'; $('fClient').focus(); return; }
     if ($('fBrief').value.trim().split(/\s+/).length < 5) { $('detailsError').textContent = 'Write a 2–3 line brief first.'; return; }
     if ($('fJD').value.trim() && !confirm('Replace the JD already in the form with a new AI-written JD?')) return;
-    busy(b, true, 'Writing the JD… (about a minute)');
+    var facts = briefFacts($('fBrief').value);
+    applyFacts(facts);
+    busy(b, true, 'Writing the JD…');
+    var t0 = Date.now(), tick = setInterval(function () { if (b.disabled) b.textContent = b.textContent.replace(/ \(\d+ s\)$/, '') + ' (' + Math.round((Date.now() - t0) / 1000) + ' s)'; }, 1000);
     api('con.jd.generate', { brief: $('fBrief').value, client: $('fClient').value, level: $('fLevel').value,
-                             confidential: $('fConfidential').checked ? 'Yes' : 'No' }, 150000).then(function (r) {
+                             confidential: $('fConfidential').checked ? 'Yes' : 'No' }, 240000).then(function (r) {
       var f = r.fields || {};
       var num = function (v) { return String(v || '').replace(/[^\d.]/g, ''); };
       if (f.jd) $('fJD').value = f.jd;
@@ -891,12 +924,12 @@
       if (f.mustHaves) $('fMust').value = f.mustHaves;
       if (f.niceToHaves) $('fNice').value = f.niceToHaves;
       if (f.clientValues && !$('fValues').value.trim()) $('fValues').value = f.clientValues;
-      if (['Entry', 'Mid', 'Leadership'].indexOf(f.level) > -1) $('fLevel').value = f.level;
+      if (!facts.level && ['Entry', 'Mid', 'Leadership'].indexOf(f.level) > -1) { $('fLevel').value = f.level; estimate(); } // years written in the brief take priority
       if (!$('fTitle').value.trim()) throw new Error('The AI could not work out the role title. Please type it and click "Save and generate questions".');
       b.textContent = 'Drafting the questions…';
       return saveRole($('btnSaveRole')).then(function () { tab('tabQuestions'); questions = []; generate(); });
-    }).then(function () { busy(b, false); })
-      .catch(function (e) { busy(b, false); $('detailsError').textContent = SS.errText(e); });
+    }).then(function () { clearInterval(tick); busy(b, false); })
+      .catch(function (e) { clearInterval(tick); busy(b, false); $('detailsError').textContent = SS.errText(e); });
   };
 
   // ---------------- JD auto-read, bulk invite, comparison ----------------
