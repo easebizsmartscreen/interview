@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Video interview – EaseBiz SmartScreen</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header id="brandHeader"></header>
+<main>
+  <div class="steps" id="stepBar"></div>
+
+  <!-- Loading -->
+  <section class="screen card center" id="scrLoading">
+    <div class="spinner"></div>
+    <p class="muted">Loading your interview…</p>
+  </section>
+
+  <!-- Problem screens -->
+  <section class="screen card hidden" id="scrProblem">
+    <h1 id="problemTitle">This link cannot be opened</h1>
+    <p id="problemText"></p>
+    <div id="problemHelp" class="notice"></div>
+  </section>
+
+  <!-- 1. Welcome -->
+  <section class="screen card hidden" id="scrWelcome">
+    <h1>Welcome, <span id="wName"></span></h1>
+    <p>You are invited to a short video interview for the <strong id="wRole"></strong> position with <strong id="wCompany"></strong>.</p>
+    <div class="notice">
+      <strong>What to expect</strong>
+      <ul style="margin:6px 0 0; padding-left:20px;">
+        <li>About <span id="wMinutes">20</span> minutes in total, on your phone or laptop.</li>
+        <li>A few quick questions about your current role and availability.</li>
+        <li>A camera check and a practice question before you begin.</li>
+        <li><span id="wTotal"></span> recorded questions, one at a time, each with 30 seconds to think.</li>
+        <li>Please complete it before <strong id="wDeadline"></strong>.</li>
+      </ul>
+    </div>
+    <p class="muted">Sit in a quiet, well-lit place where you will not be disturbed. Keep your phone charged or plugged in.</p>
+    <button id="btnWelcome">Begin</button>
+  </section>
+
+  <!-- 2. Consent -->
+  <section class="screen card hidden" id="scrConsent">
+    <h2>How we use your interview</h2>
+    <div class="notice small" id="consentNotice"></div>
+    <label class="check"><input type="checkbox" id="cRecord"> <span>I agree to <span class="cCompany"></span> recording and assessing my interview as described above.</span></label>
+    <label class="check"><input type="checkbox" id="cShare"> <span>I agree to <span class="cCompany"></span> sharing my recording and assessment with <span id="cClient"></span> for this role.</span></label>
+    <label class="check"><input type="checkbox" id="cPool"> <span>(Optional) Keep my profile and assessment for other suitable roles for 6 months. My video is still deleted after <span class="cVideoDays"></span> days.</span></label>
+    <p class="muted small">The first two are needed to take part.</p>
+    <button id="btnConsent" disabled>Continue</button>
+  </section>
+
+  <!-- 3. Quick-fit -->
+  <section class="screen card hidden" id="scrQuickFit">
+    <h2>A few quick questions</h2>
+    <p class="muted">This takes about 2 minutes.</p>
+    <div class="row">
+      <div><label for="qfCurrent">Current CTC (₹ lakh per year)</label><input type="number" id="qfCurrent" min="0" step="0.1" inputmode="decimal"></div>
+      <div><label for="qfExpected">Expected CTC (₹ lakh per year)</label><input type="number" id="qfExpected" min="0" step="0.1" inputmode="decimal"></div>
+    </div>
+    <div class="row">
+      <div><label for="qfNotice">Notice period (days)</label><input type="number" id="qfNotice" min="0" step="1" inputmode="numeric"></div>
+      <div><label for="qfLocation">Current city</label><input type="text" id="qfLocation" maxlength="100"></div>
+    </div>
+    <label for="qfRelocate">Are you willing to relocate if the role needs it?</label>
+    <select id="qfRelocate"><option value="">Choose…</option><option>Yes</option><option>No</option></select>
+    <div id="qfMust"></div>
+    <label for="qfCV">Your latest CV (PDF or Word, under 5 MB, optional)</label>
+    <input type="file" id="qfCV" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+    <p class="muted small" id="qfError" style="color:var(--bad)"></p>
+    <button id="btnQuickFit">Continue</button>
+  </section>
+
+  <!-- Quick-fit hold -->
+  <section class="screen card hidden" id="scrHold">
+    <h2>Thank you</h2>
+    <p>Thank you for your answers. Your recruiter will call you shortly to discuss the next steps.</p>
+    <div class="notice" id="holdHelp"></div>
+  </section>
+
+  <!-- 4. System check -->
+  <section class="screen card hidden" id="scrCheck">
+    <h2>Camera and microphone check</h2>
+    <p class="muted" id="checkText">Allow the camera and microphone when your browser asks.</p>
+    <div class="video-wrap">
+      <video id="preview" class="mirror" autoplay muted playsinline></video>
+      <div class="overlay-badge" id="faceBadge">Checking…</div>
+      <div class="warn-overlay hidden" id="faceWarn">Please keep your face clearly in view</div>
+    </div>
+    <div class="meter"><div id="meter"></div></div>
+    <p class="muted small">Say a few words: the bar above should move.</p>
+    <ul class="small" style="padding-left:20px" id="checkList">
+      <li id="ckCam">Camera: checking…</li>
+      <li id="ckMic">Microphone: waiting for your voice…</li>
+      <li id="ckFace">Face: checking…</li>
+    </ul>
+    <p class="muted small" id="checkError" style="color:var(--bad)"></p>
+    <button id="btnCheck" disabled>Continue</button>
+  </section>
+
+  <!-- 5. Identity and room -->
+  <section class="screen card hidden" id="scrIdentity">
+    <h2 id="idTitle">Identity check</h2>
+    <p id="idText">Hold a photo ID next to your face so both are clearly visible. You may cover the ID number with your finger. Then take the photo.</p>
+    <div class="video-wrap">
+      <video id="idVideo" class="mirror" autoplay muted playsinline></video>
+      <img id="idPhoto" class="hidden" alt="Your ID photo">
+      <div class="rec-badge hidden" id="roomBadge">● 10</div>
+    </div>
+    <p class="muted small" id="idError" style="color:var(--bad)"></p>
+    <div id="idButtons">
+      <button id="btnTakePhoto">Take photo</button>
+      <button id="btnRetake" class="secondary hidden">Retake</button>
+      <button id="btnUsePhoto" class="hidden">Use this photo</button>
+    </div>
+    <div id="roomButtons" class="hidden">
+      <button id="btnRoomScan">Start room scan</button>
+    </div>
+  </section>
+
+  <!-- 6. Practice -->
+  <section class="screen card hidden" id="scrPractice">
+    <h2>Practice question (not scored)</h2>
+    <div class="question-text" id="practiceQ"></div>
+    <p class="muted">Record a short answer, then watch it back. You can try as many times as you like. This recording is not saved.</p>
+    <div class="video-wrap">
+      <video id="practiceVideo" class="mirror" autoplay muted playsinline></video>
+      <video id="practicePlayback" class="hidden" controls playsinline></video>
+      <div class="rec-badge hidden" id="practiceBadge">● 30</div>
+    </div>
+    <button id="btnPracticeRec">Record practice answer (30 seconds)</button>
+    <button id="btnPracticeStop" class="secondary hidden">Stop</button>
+    <button id="btnPracticeAgain" class="secondary hidden">Try again</button>
+    <button id="btnPracticeDone" class="hidden">I'm ready for the interview</button>
+  </section>
+
+  <!-- 7. Rules -->
+  <section class="screen card hidden" id="scrRules">
+    <h2 id="rulesTitle">Before you begin</h2>
+    <ol class="small" style="padding-left:20px">
+      <li>Stay alone in the room; nobody else should be present or speaking to you.</li>
+      <li>Keep your face clearly visible to the camera throughout.</li>
+      <li>Stay on this screen. Switching to another app or tab is recorded and reviewed.</li>
+      <li>Keep notes, other screens and other phones away. Answer from your own experience.</li>
+      <li>Turn on Do Not Disturb so calls do not interrupt you.</li>
+      <li>Each question gives you 30 seconds to think; recording then starts automatically. Answers cannot be re-recorded.</li>
+      <li>If your connection drops, open the same link again on this device. You will continue from the next question.</li>
+    </ol>
+    <p class="muted small">Tip: use real examples. Tell us what you did, how, and what the result was.</p>
+    <button id="btnStart">Start the interview</button>
+  </section>
+
+  <!-- 8. Interview -->
+  <section class="screen card hidden" id="scrInterview">
+    <div class="qhead">
+      <span class="pill info" id="qPos">Question 1 of 9</span>
+      <span class="pill" id="qPhase">Thinking time</span>
+    </div>
+    <div class="question-text" id="qText"></div>
+    <div class="video-wrap">
+      <video id="liveVideo" class="mirror" autoplay muted playsinline></video>
+      <div class="rec-badge hidden" id="liveRec">● REC</div>
+      <div class="warn-overlay hidden" id="liveWarn">Please keep your face clearly in view</div>
+    </div>
+    <p><span class="timer" id="qTimer">0:30</span> <span class="muted" id="qTimerLabel">to think</span></p>
+    <button id="btnAnswerNow">Start answering now</button>
+    <button id="btnFinishAnswer" class="hidden">Finish answer</button>
+    <div id="uploadBox" class="notice hidden">
+      <div class="spinner"></div>
+      <p class="center" id="uploadText">Saving your answer… please keep this page open.</p>
+      <button id="btnRetryUpload" class="hidden">Try again</button>
+    </div>
+  </section>
+
+  <!-- 9. Thank you -->
+  <section class="screen card hidden" id="scrThanks">
+    <h1>Thank you</h1>
+    <p id="thanksText">Your interview has been submitted successfully. Our team will review it and update you within 5 working days.</p>
+    <div id="ratingBox">
+      <label>How was this experience? (optional)</label>
+      <div class="score-btns" id="ratingBtns"></div>
+      <p class="muted small" id="ratingDone"></p>
+    </div>
+  </section>
+</main>
+
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script>
+(function () {
+  'use strict';
+  var $ = SS.$;
+  var MEDIAPIPE_BASE = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.2.3';
+  var FACE_MODELS = [
+    'https://huggingface.co/litert-community/MediaPipe-FaceDetector-BlazeFace-Short-Range/resolve/main/blaze_face_short_range.tflite',
+    'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite'
+  ];
+  var STEP_ORDER = ['scrWelcome', 'scrConsent', 'scrQuickFit', 'scrCheck', 'scrIdentity', 'scrPractice', 'scrRules', 'scrInterview', 'scrThanks'];
+
+  var token = SS.param('t');
+  var sid = (function () {
+    var k = 'ss_sid_' + token;
+    var v = null;
+    try { v = localStorage.getItem(k); } catch (e) { /* storage blocked */ }
+    if (!v) {
+      v = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random()).replace(/-/g, '');
+      try { localStorage.setItem(k, v); } catch (e) { /* storage blocked */ }
+    }
+    return v;
+  })();
+
+  var info = null;          // reply from cand.load
+  var stream = null;        // camera + microphone
+  var audioCtx = null;
+  var detector = null;      // face detector (null if it could not load)
+  var events = [];          // integrity events waiting to be sent
+  var monitoring = false;   // true while the interview runs
+  var currentQ = 0;
+
+  SS.brand('Video interview');
+
+  function go(id) {
+    SS.screen(id);
+    var idx = STEP_ORDER.indexOf(id);
+    $('stepBar').innerHTML = idx < 0 ? '' : STEP_ORDER.map(function (_, i) { return '<span class="' + (i <= idx ? 'done' : '') + '"></span>'; }).join('');
+  }
+  function call(action, data, ms) {
+    var d = { t: token, sid: sid };
+    Object.keys(data || {}).forEach(function (k) { d[k] = data[k]; });
+    return SS.api(action, d, ms);
+  }
+  function helpHtml(h) {
+    h = h || (info && info.help) || {};
+    var parts = [];
+    if (h.whatsapp) parts.push('WhatsApp: <a href="https://wa.me/' + SS.esc(h.whatsapp) + '">+' + SS.esc(h.whatsapp) + '</a>');
+    if (h.phone) parts.push('Phone: ' + SS.esc(h.phone));
+    if (h.email) parts.push('Email: <a href="mailto:' + SS.esc(h.email) + '">' + SS.esc(h.email) + '</a>');
+    return parts.length ? '<strong>Need help?</strong><br>' + parts.join('<br>') : 'For help, please reply to your invitation message.';
+  }
+  function problem(title, text, help) {
+    $('problemTitle').textContent = title;
+    $('problemText').textContent = text;
+    $('problemHelp').innerHTML = helpHtml(help);
+    go('scrProblem');
+  }
+  function handleCode(e) {
+    var code = e && e.code;
+    if (code === 'OTHER_DEVICE') { problem('This interview is open on another device', 'For security, an interview can only be taken on the device where it was first opened. If you need to change device, please contact your recruiter.'); return true; }
+    if (code === 'EXPIRED') { problem('This invitation has expired', 'The time to complete this interview has passed. Please contact your recruiter if you would like more time.'); return true; }
+    if (code === 'NOT_FOUND') { problem('This link is not valid', 'Please check that you opened the full link from your invitation message.'); return true; }
+    if (code === 'HOLD') { $('holdHelp').innerHTML = helpHtml(); go('scrHold'); return true; }
+    if (code === 'ALREADY_DONE') { go('scrThanks'); $('ratingBox').classList.add('hidden'); return true; }
+    return false;
+  }
+  function pushEvent(type, extra) {
+    var e = { type: type, at: new Date().toISOString(), qNo: currentQ || '' };
+    Object.keys(extra || {}).forEach(function (k) { e[k] = extra[k]; });
+    events.push(e);
+  }
+  function takeEvents() { var out = events; events = []; return out; }
+
+  // ---------------- load ----------------
+  if (!token) { problem('This link is not valid', 'Please open the full link from your invitation message.'); return; }
+  call('cand.load', {}).then(function (r) {
+    if (!r.ok) { handleCode({ code: r.code }); if (r.help) $('problemHelp').innerHTML = helpHtml(r.help); return; }
+    info = r;
+    var c = r.candidate;
+    if (c.done) { go('scrThanks'); $('ratingBox').classList.add('hidden'); return; }
+    if (c.quickFitHold) { $('holdHelp').innerHTML = helpHtml(); go('scrHold'); return; }
+    fillWelcome();
+    if (c.started) { resumeFlow(); return; }
+    if (c.consentDone && c.quickFitDone) { startCheck(); return; }
+    if (c.consentDone) { fillQuickFit(); go('scrQuickFit'); return; }
+    go('scrWelcome');
+  }).catch(function (e) {
+    if (!handleCode(e)) problem('We could not load your interview', SS.errText(e) + ' Please refresh the page in a minute.');
+  });
+
+  function fillWelcome() {
+    $('wName').textContent = info.candidate.firstName;
+    $('wRole').textContent = info.role.title;
+    $('wCompany').textContent = info.role.company;
+    $('wMinutes').textContent = Math.max(15, info.interview.totalMinutes + 8);
+    $('wTotal').textContent = info.interview.total;
+    $('wDeadline').textContent = SS.fmtDate(info.candidate.deadline);
+    var co = info.company.name || 'EaseBiz HR Solutions Pvt. Ltd.';
+    Array.prototype.forEach.call(document.querySelectorAll('.cCompany'), function (el) { el.textContent = co; });
+    $('cClient').textContent = info.role.clientName || 'the hiring company (named to you by your recruiter before any sharing)';
+    Array.prototype.forEach.call(document.querySelectorAll('.cVideoDays'), function (el) { el.textContent = info.company.videoDays || 60; });
+    $('consentNotice').innerHTML =
+      '<p><strong>What we record:</strong> your video and audio answers, a photo of you holding your ID, and a short room scan. ' +
+      'We also note technical events, such as leaving the interview screen. We use these only to assess your fit for the ' + SS.esc(info.role.title) + ' role.</p>' +
+      '<p><strong>Who decides:</strong> a trained ' + SS.esc(co) + ' reviewer scores your answers. No automated system makes decisions about you, and we do not analyse your face, emotions or voice.</p>' +
+      '<p><strong>Who sees it:</strong> our recruitment team and, only if you agree below, the hiring company for this role (view-only, for ' + SS.esc(info.company.clientDays || 30) + ' days). Your ID photo is never shared with the hiring company.</p>' +
+      '<p><strong>How long we keep it:</strong> ID photo and room scan, ' + SS.esc(info.company.idDays || 30) + ' days; video, ' + SS.esc(info.company.videoDays || 60) + ' days after the interview; written assessment, 12 months.</p>' +
+      '<p><strong>Your choices:</strong> you may withdraw consent, or ask to see or delete your data, at any time by writing to ' +
+      (info.company.privacyEmail ? '<a href="mailto:' + SS.esc(info.company.privacyEmail) + '">' + SS.esc(info.company.privacyEmail) + '</a>' : 'your recruiter') + '. We act within 7 working days.</p>';
+  }
+
+  $('btnWelcome').onclick = function () { go('scrConsent'); };
+
+  // ---------------- consent ----------------
+  function consentState() { $('btnConsent').disabled = !($('cRecord').checked && $('cShare').checked); }
+  $('cRecord').onchange = consentState; $('cShare').onchange = consentState;
+  $('btnConsent').onclick = function () {
+    var btn = this; btn.disabled = true;
+    call('cand.consent', { record: true, share: true, pool: $('cPool').checked }).then(function () {
+      fillQuickFit(); go('scrQuickFit');
+    }).catch(function (e) { btn.disabled = false; if (!handleCode(e)) SS.toast(SS.errText(e), 'bad'); });
+  };
+
+  // ---------------- quick-fit ----------------
+  function fillQuickFit() {
+    var qs = (info && info.role.quickFitQs) || [];
+    $('qfMust').innerHTML = qs.map(function (m, i) {
+      return '<label for="qfM' + i + '">' + SS.esc(m.question) + '</label>' +
+        '<select id="qfM' + i + '"><option value="">Choose…</option><option>Yes</option><option>No</option></select>';
+    }).join('');
+  }
+  $('btnQuickFit').onclick = function () {
+    var btn = this;
+    var qs = (info && info.role.quickFitQs) || [];
+    var a = { currentCTC: $('qfCurrent').value, expectedCTC: $('qfExpected').value, noticeDays: $('qfNotice').value,
+              location: $('qfLocation').value.trim(), relocate: $('qfRelocate').value, mustHaves: [] };
+    var missing = !a.currentCTC || !a.expectedCTC || a.noticeDays === '' || !a.location || !a.relocate;
+    qs.forEach(function (_, i) { var v = $('qfM' + i).value; if (!v) missing = true; a.mustHaves.push(v); });
+    if (missing) { $('qfError').textContent = 'Please answer every question.'; return; }
+    var file = $('qfCV').files[0];
+    if (file && file.size > 5 * 1024 * 1024) { $('qfError').textContent = 'The CV is larger than 5 MB. Please choose a smaller file.'; return; }
+    $('qfError').textContent = '';
+    btn.disabled = true; btn.textContent = 'Saving…';
+    var cvP = file ? SS.blobToBase64(file).then(function (b64) { return { base64: b64, mime: file.type || 'application/octet-stream', name: file.name }; }) : Promise.resolve(null);
+    cvP.then(function (cv) { return call('cand.quickfit', { answers: a, cv: cv }, 120000); }).then(function (r) {
+      if (!r.proceed) { $('holdHelp').innerHTML = helpHtml(); go('scrHold'); return; }
+      startCheck();
+    }).catch(function (e) {
+      btn.disabled = false; btn.textContent = 'Continue';
+      if (!handleCode(e)) $('qfError').textContent = SS.errText(e);
+    });
+  };
+
+  // ---------------- camera, microphone, face ----------------
+  function ensureAudio() {
+    try {
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      if (Ctx && !audioCtx) audioCtx = new Ctx();
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    } catch (e) { audioCtx = null; }
+  }
+  function openCamera() {
+    if (stream) return Promise.resolve(stream);
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return Promise.reject(new Error('This browser cannot use the camera. Please open the link in Chrome, Edge or Safari.'));
+    return navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 360 } },
+      audio: { echoCancellation: true, noiseSuppression: true }
+    }).then(function (s) {
+      stream = s;
+      s.getVideoTracks().forEach(function (t) { t.onended = function () { if (monitoring) pushEvent('connection', { detail: 'Camera stopped during the interview' }); }; });
+      return s;
+    });
+  }
+  function attach(videoId) { var v = $(videoId); if (v.srcObject !== stream) v.srcObject = stream; return v; }
+
+  function loadDetector() {
+    if (detector) return Promise.resolve(detector);
+    var p = import(MEDIAPIPE_BASE + '/vision_bundle.mjs').then(function (vision) {
+      return vision.FilesetResolver.forVisionTasks(MEDIAPIPE_BASE + '/wasm').then(function (fs) {
+        var tryModel = function (i, last) {
+          if (i >= FACE_MODELS.length) return Promise.reject(last || new Error('No face model'));
+          return vision.FaceDetector.createFromOptions(fs, {
+            baseOptions: { modelAssetPath: FACE_MODELS[i], delegate: 'CPU' }, runningMode: 'VIDEO', minDetectionConfidence: 0.5
+          }).catch(function (e) { return tryModel(i + 1, e); });
+        };
+        return tryModel(0, null);
+      });
+    });
+    return Promise.race([p, new Promise(function (_, rej) { setTimeout(function () { rej(new Error('timeout')); }, 30000); })])
+      .then(function (d) { detector = d; return d; });
+  }
+  function countFaces(video) {
+    if (!detector || video.readyState < 2) return -1;
+    try { var r = detector.detectForVideo(video, performance.now()); return r && r.detections ? r.detections.length : 0; }
+    catch (e) { return -1; }
+  }
+
+  // ---------------- system check ----------------
+  var checkTimer = null;
+  function startCheck() {
+    go('scrCheck');
+    ensureAudio();
+    var camOk = false, micOk = false, faceOk = false, faceUnavailable = false;
+    function update() {
+      $('btnCheck').disabled = !(camOk && micOk && (faceOk || faceUnavailable));
+    }
+    openCamera().then(function () {
+      camOk = true;
+      $('ckCam').textContent = 'Camera: working ✓';
+      attach('preview');
+      // microphone level
+      if (audioCtx) {
+        var an = audioCtx.createAnalyser(); an.fftSize = 1024;
+        audioCtx.createMediaStreamSource(stream).connect(an);
+        var data = new Uint8Array(an.fftSize);
+        (function tick() {
+          if (!document.body.contains($('meter')) || $('scrCheck').classList.contains('hidden')) return;
+          an.getByteTimeDomainData(data);
+          var sum = 0; for (var i = 0; i < data.length; i++) { var v = (data[i] - 128) / 128; sum += v * v; }
+          var rms = Math.sqrt(sum / data.length);
+          $('meter').style.width = Math.min(100, Math.round(rms * 400)) + '%';
+          if (rms > 0.04 && !micOk) { micOk = true; $('ckMic').textContent = 'Microphone: working ✓'; update(); }
+          requestAnimationFrame(tick);
+        })();
+      } else { micOk = true; $('ckMic').textContent = 'Microphone: on'; }
+      update();
+      loadDetector().then(function () {
+        var v = $('preview');
+        checkTimer = setInterval(function () {
+          var n = countFaces(v);
+          if (n < 0) return;
+          $('faceBadge').textContent = n === 1 ? 'Face visible ✓' : n === 0 ? 'No face visible' : n + ' faces visible';
+          SS.show('faceWarn', n !== 1);
+          if (n === 1 && !faceOk) { faceOk = true; $('ckFace').textContent = 'Face: visible ✓'; update(); }
+        }, 500);
+      }).catch(function () {
+        faceUnavailable = true;
+        $('faceBadge').textContent = 'Camera on';
+        $('ckFace').textContent = 'Face: the automatic check is not available on this device; the reviewer will check manually.';
+        update();
+      });
+    }).catch(function (e) {
+      $('ckCam').textContent = 'Camera: not available';
+      var name = e && e.name;
+      $('checkError').textContent = name === 'NotAllowedError'
+        ? 'Camera or microphone access was blocked. Please allow access in your browser settings for this site, then refresh the page.'
+        : name === 'NotFoundError' ? 'No camera or microphone was found on this device. Please use a phone or laptop with a front camera.'
+        : 'The camera could not start: ' + SS.errText(e);
+    });
+  }
+  $('btnCheck').onclick = function () {
+    clearInterval(checkTimer);
+    if (info.candidate.idDone && info.candidate.roomDone) { goPractice(); return; }
+    startIdentity();
+  };
+
+  // ---------------- identity + room scan ----------------
+  var idBlob = null;
+  function startIdentity() {
+    go('scrIdentity');
+    attach('idVideo');
+    if (info.candidate.idDone) { showRoomStep(); return; }
+  }
+  $('btnTakePhoto').onclick = function () {
+    var v = $('idVideo');
+    var cv = document.createElement('canvas');
+    cv.width = v.videoWidth || 640; cv.height = v.videoHeight || 360;
+    cv.getContext('2d').drawImage(v, 0, 0, cv.width, cv.height);
+    cv.toBlob(function (b) {
+      idBlob = b;
+      $('idPhoto').src = URL.createObjectURL(b);
+      SS.show('idPhoto', true); SS.show('idVideo', false);
+      SS.show('btnTakePhoto', false); SS.show('btnRetake', true); SS.show('btnUsePhoto', true);
+    }, 'image/jpeg', 0.85);
+  };
+  $('btnRetake').onclick = function () {
+    SS.show('idPhoto', false); SS.show('idVideo', true);
+    SS.show('btnTakePhoto', true); SS.show('btnRetake', false); SS.show('btnUsePhoto', false);
+  };
+  $('btnUsePhoto').onclick = function () {
+    var btn = this; btn.disabled = true; btn.textContent = 'Saving…';
+    SS.blobToBase64(idBlob).then(function (b64) { return call('cand.media', { kind: 'id', base64: b64, mime: 'image/jpeg' }, 90000); })
+      .then(function () { info.candidate.idDone = true; btn.disabled = false; btn.textContent = 'Use this photo'; showRoomStep(); })
+      .catch(function (e) { btn.disabled = false; btn.textContent = 'Use this photo'; if (!handleCode(e)) $('idError').textContent = SS.errText(e); });
+  };
+  function showRoomStep() {
+    $('idTitle').textContent = 'Room check';
+    $('idText').textContent = 'Slowly turn your camera around the room for about 10 seconds, so we can see you are alone. Recording starts when you tap the button.';
+    SS.show('idPhoto', false); SS.show('idVideo', true);
+    SS.show('idButtons', false); SS.show('roomButtons', true);
+    $('idError').textContent = '';
+  }
+  $('btnRoomScan').onclick = function () {
+    var btn = this; btn.disabled = true;
+    recordFor(10, 'roomBadge').then(function (res) {
+      btn.textContent = 'Saving…';
+      return SS.blobToBase64(res.blob).then(function (b64) { return call('cand.media', { kind: 'room', base64: b64, mime: res.blob.type }, 120000); });
+    }).then(function () {
+      info.candidate.roomDone = true;
+      goPractice();
+    }).catch(function (e) {
+      btn.disabled = false; btn.textContent = 'Start room scan';
+      if (!handleCode(e)) $('idError').textContent = SS.errText(e);
+    });
+  };
+
+  // ---------------- recording helpers ----------------
+  function pickMime() {
+    if (typeof MediaRecorder === 'undefined') return null;
+    var opts = ['video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4;codecs=avc1,mp4a', 'video/mp4'];
+    for (var i = 0; i < opts.length; i++) { try { if (MediaRecorder.isTypeSupported(opts[i])) return opts[i]; } catch (e) { /* next */ } }
+    return '';
+  }
+  /** Records for up to `seconds`; resolves {blob, seconds}. Returns a controller with stop(). */
+  var activeRec = null;
+  function recordFor(seconds, badgeId, onTick) {
+    var mime = pickMime();
+    if (mime === null) return Promise.reject(new Error('This browser cannot record video. Please use Chrome, Edge or Safari.'));
+    var opts = { videoBitsPerSecond: 300000, audioBitsPerSecond: 48000 };
+    if (mime) opts.mimeType = mime;
+    var rec;
+    try { rec = new MediaRecorder(stream, opts); } catch (e) { return Promise.reject(e); }
+    var chunks = [];
+    var started = Date.now();
+    var badge = badgeId ? $(badgeId) : null;
+    return new Promise(function (resolve, reject) {
+      var left = seconds;
+      var timer;
+      rec.ondataavailable = function (ev) { if (ev.data && ev.data.size) chunks.push(ev.data); };
+      rec.onerror = function (ev) { clearInterval(timer); reject(ev.error || new Error('Recording failed')); };
+      rec.onstop = function () {
+        clearInterval(timer);
+        if (badge) SS.show(badge, false);
+        activeRec = null;
+        var blob = new Blob(chunks, { type: (rec.mimeType || mime || 'video/webm').split(';')[0] });
+        if (!blob.size) { reject(new Error('The recording was empty. Please try again.')); return; }
+        resolve({ blob: blob, seconds: Math.round((Date.now() - started) / 1000) });
+      };
+      rec.start(1000);
+      activeRec = rec;
+      if (badge) { SS.show(badge, true); badge.textContent = '● ' + left; }
+      if (onTick) onTick(left);
+      timer = setInterval(function () {
+        left -= 1;
+        if (badge) badge.textContent = '● ' + Math.max(0, left);
+        if (onTick) onTick(Math.max(0, left));
+        if (left <= 0) { clearInterval(timer); try { rec.stop(); } catch (e) { /* stopped */ } }
+      }, 1000);
+    });
+  }
+  function stopRecording() { if (activeRec && activeRec.state !== 'inactive') { try { activeRec.stop(); } catch (e) { /* stopped */ } } }
+
+  // ---------------- practice ----------------
+  function goPractice() {
+    go('scrPractice');
+    $('practiceQ').textContent = info.interview.practiceQuestion;
+    attach('practiceVideo');
+  }
+  $('btnPracticeRec').onclick = function () {
+    SS.show('btnPracticeRec', false); SS.show('btnPracticeStop', true);
+    SS.show('practicePlayback', false); SS.show('practiceVideo', true);
+    SS.show('btnPracticeAgain', false); SS.show('btnPracticeDone', false);
+    recordFor(30, 'practiceBadge').then(function (res) {
+      var pb = $('practicePlayback');
+      pb.src = URL.createObjectURL(res.blob);
+      SS.show('practiceVideo', false); SS.show('practicePlayback', true);
+      SS.show('btnPracticeStop', false); SS.show('btnPracticeAgain', true); SS.show('btnPracticeDone', true);
+    }).catch(function (e) {
+      SS.show('btnPracticeStop', false); SS.show('btnPracticeRec', true);
+      SS.toast(SS.errText(e), 'bad');
+    });
+  };
+  $('btnPracticeStop').onclick = stopRecording;
+  $('btnPracticeAgain').onclick = function () { $('btnPracticeRec').onclick(); };
+  $('btnPracticeDone').onclick = function () { $('practicePlayback').pause(); go('scrRules'); };
+
+  // ---------------- resume ----------------
+  function resumeFlow() {
+    $('rulesTitle').textContent = 'Welcome back: continue your interview';
+    $('btnStart').textContent = 'Continue the interview';
+    go('scrCheck');
+    startCheck();
+    $('btnCheck').onclick = function () { clearInterval(checkTimer); go('scrRules'); };
+  }
+
+  // ---------------- interview ----------------
+  var faceTimer = null, missingSince = 0, multiCount = 0, multiCooldown = 0;
+  function startMonitoring() {
+    monitoring = true;
+    document.addEventListener('visibilitychange', function () {
+      if (monitoring && document.visibilityState === 'hidden') pushEvent('left_page', { detail: 'Switched away from the interview' });
+    });
+    document.addEventListener('fullscreenchange', function () {
+      if (monitoring && !document.fullscreenElement) pushEvent('fullscreen_exit', { detail: 'Left full-screen mode' });
+    });
+    ['copy', 'cut', 'contextmenu'].forEach(function (t) {
+      document.addEventListener(t, function (ev) {
+        if (!monitoring) return;
+        ev.preventDefault();
+        if (t !== 'contextmenu') pushEvent('copy_attempt', { detail: 'Tried to copy text' });
+      });
+    });
+    var v = $('liveVideo');
+    faceTimer = setInterval(function () {
+      var n = countFaces(v);
+      if (n < 0) return;
+      var nowT = Date.now();
+      if (n === 0) {
+        if (!missingSince) missingSince = nowT;
+        if (nowT - missingSince > 5000) SS.show('liveWarn', true);
+      } else {
+        if (missingSince) {
+          var gap = Math.round((nowT - missingSince) / 1000);
+          if (gap >= 5) pushEvent('face_missing', { seconds: gap, detail: 'Face not visible for ' + gap + ' seconds' });
+          missingSince = 0;
+        }
+        SS.show('liveWarn', false);
+      }
+      if (n >= 2) {
+        multiCount += 1;
+        if (multiCount >= 2 && nowT > multiCooldown) {
+          pushEvent('multi_face', { detail: n + ' faces in view' });
+          multiCooldown = nowT + 15000;
+        }
+      } else { multiCount = 0; }
+    }, 500);
+  }
+  function flushMissingFace() {
+    if (missingSince) {
+      var gap = Math.round((Date.now() - missingSince) / 1000);
+      if (gap >= 5) pushEvent('face_missing', { seconds: gap, detail: 'Face not visible for ' + gap + ' seconds' });
+      missingSince = Date.now();
+    }
+  }
+
+  function deviceLabel() {
+    var ua = navigator.userAgent;
+    var type = /iPad|Tablet/i.test(ua) ? 'Tablet' : /iPhone/i.test(ua) ? 'iPhone' : /Android/i.test(ua) ? (/Mobile/i.test(ua) ? 'Android phone' : 'Android tablet') : 'Laptop or desktop';
+    var br = /Edg\//.test(ua) ? 'Edge' : /SamsungBrowser/.test(ua) ? 'Samsung Internet' : /CriOS|Chrome\//.test(ua) ? 'Chrome' : /FxiOS|Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : 'Other browser';
+    var inApp = /FBAN|FBAV|Instagram|WhatsApp|Line\//i.test(ua) ? ' (in-app browser)' : '';
+    return type + ' · ' + br + inApp;
+  }
+
+  $('btnStart').onclick = function () {
+    var btn = this; btn.disabled = true;
+    pushEvent('device', { detail: deviceLabel() + (detector ? '' : ' · automatic face check unavailable') });
+    call('cand.start', {}).then(function () {
+      var el = document.documentElement;
+      var wide = window.matchMedia && window.matchMedia('(min-width: 900px)').matches;
+      if (wide && el.requestFullscreen) { el.requestFullscreen().catch(function () { /* not allowed */ }); }
+      attach('liveVideo');
+      startMonitoring();
+      go('scrInterview');
+      nextQuestion();
+    }).catch(function (e) { btn.disabled = false; if (!handleCode(e)) SS.toast(SS.errText(e), 'bad'); });
+  };
+
+  function fmt(s) { return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
+
+  function nextQuestion() {
+    SS.show('uploadBox', false);
+    $('qText').textContent = '';
+    $('qPhase').textContent = 'Loading…';
+    call('cand.question', {}).then(function (r) {
+      if (r.done) { finishInterview(); return; }
+      var q = r.question;
+      currentQ = q.qNo;
+      $('qPos').textContent = 'Question ' + q.position + ' of ' + q.total;
+      $('qText').textContent = q.text;
+      thinkPhase(q);
+    }).catch(function (e) {
+      if (handleCode(e)) return;
+      $('qPhase').textContent = 'Connection problem';
+      $('uploadText').textContent = 'We could not load the next question: ' + SS.errText(e);
+      SS.show('uploadBox', true); SS.show('btnRetryUpload', true);
+      $('btnRetryUpload').onclick = function () { SS.show('btnRetryUpload', false); nextQuestion(); };
+    });
+  }
+
+  function thinkPhase(q) {
+    var left = q.thinkSec;
+    $('qPhase').textContent = 'Thinking time';
+    $('qPhase').className = 'pill';
+    $('qTimerLabel').textContent = 'to think';
+    $('qTimer').textContent = fmt(left);
+    SS.show('btnAnswerNow', true); SS.show('btnFinishAnswer', false);
+    var t = setInterval(function () {
+      left -= 1;
+      $('qTimer').textContent = fmt(Math.max(0, left));
+      if (left <= 0) { clearInterval(t); answerPhase(q); }
+    }, 1000);
+    $('btnAnswerNow').onclick = function () { clearInterval(t); answerPhase(q); };
+  }
+
+  function answerPhase(q) {
+    SS.show('btnAnswerNow', false);
+    $('qPhase').textContent = 'Recording';
+    $('qPhase').className = 'pill bad';
+    $('qTimerLabel').textContent = 'left to answer';
+    SS.show('liveRec', true);
+    var startedAt = Date.now();
+    SS.show('btnFinishAnswer', true);
+    $('btnFinishAnswer').disabled = true;
+    setTimeout(function () { $('btnFinishAnswer').disabled = false; }, 10000);
+    $('btnFinishAnswer').onclick = function () { $('btnFinishAnswer').disabled = true; stopRecording(); };
+    recordFor(q.answerSec, null, function (left) { $('qTimer').textContent = fmt(left); }).then(function (res) {
+      SS.show('liveRec', false); SS.show('btnFinishAnswer', false);
+      flushMissingFace();
+      uploadAnswer(q, res.blob, Math.round((Date.now() - startedAt) / 1000), 0);
+    }).catch(function (e) {
+      SS.show('liveRec', false); SS.show('btnFinishAnswer', false);
+      $('uploadText').textContent = 'The recording stopped unexpectedly: ' + SS.errText(e) + ' Please refresh the page; you will continue from this question.';
+      SS.show('uploadBox', true);
+    });
+  }
+
+  function uploadAnswer(q, blob, seconds, attempt) {
+    $('qPhase').textContent = 'Saving';
+    $('qPhase').className = 'pill info';
+    $('uploadText').textContent = 'Saving your answer… please keep this page open.';
+    SS.show('uploadBox', true); SS.show('btnRetryUpload', false);
+    var evs = takeEvents();
+    SS.blobToBase64(blob).then(function (b64) {
+      return call('cand.answer', { qNo: q.qNo, base64: b64, mime: blob.type, seconds: seconds, events: evs }, 180000);
+    }).then(function () {
+      nextQuestion();
+    }).catch(function (e) {
+      events = evs.concat(events); // keep events for the next attempt
+      if (handleCode(e)) return;
+      if (attempt < 2) { setTimeout(function () { uploadAnswer(q, blob, seconds, attempt + 1); }, 3000); return; }
+      $('uploadText').textContent = 'Your answer could not be saved yet (' + SS.errText(e) + '). Please check your internet connection and tap Try again. Your recording is kept on this page.';
+      SS.show('btnRetryUpload', true);
+      $('btnRetryUpload').onclick = function () { uploadAnswer(q, blob, seconds, 0); };
+    });
+  }
+
+  function finishInterview() {
+    monitoring = false;
+    clearInterval(faceTimer);
+    flushMissingFace();
+    $('qPhase').textContent = 'Submitting';
+    $('uploadText').textContent = 'Submitting your interview…';
+    SS.show('uploadBox', true);
+    var evs = takeEvents();
+    call('cand.finish', { events: evs }).then(function () {
+      if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
+      if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(function () {});
+      go('scrThanks');
+    }).catch(function (e) {
+      events = evs.concat(events);
+      if (handleCode(e)) return;
+      $('uploadText').textContent = 'We could not submit yet: ' + SS.errText(e);
+      SS.show('btnRetryUpload', true);
+      $('btnRetryUpload').onclick = function () { SS.show('btnRetryUpload', false); finishInterview(); };
+    });
+  }
+
+  // ---------------- rating ----------------
+  $('ratingBtns').innerHTML = [1, 2, 3, 4, 5].map(function (n) { return '<button type="button" data-n="' + n + '">' + n + '</button>'; }).join('');
+  $('ratingBtns').onclick = function (ev) {
+    var n = ev.target && ev.target.getAttribute('data-n');
+    if (!n) return;
+    Array.prototype.forEach.call($('ratingBtns').children, function (b) { b.classList.toggle('on', b.getAttribute('data-n') === n); b.disabled = true; });
+    call('cand.finish', { rating: Number(n), events: [] }).catch(function () { /* rating is optional */ });
+    $('ratingDone').textContent = 'Thank you for your feedback. You may now close this page.';
+  };
+})();
+</script>
+</body>
+</html>

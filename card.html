@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Candidate profile – EaseBiz SmartScreen</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header id="brandHeader"></header>
+<main>
+  <section class="screen card center" id="scrLoading"><div class="spinner"></div><p class="muted">Loading the candidate profile…</p></section>
+  <section class="screen card hidden" id="scrProblem"><h2 id="pTitle"></h2><p id="pText"></p></section>
+
+  <section class="screen hidden" id="scrCard">
+    <div class="card">
+      <p class="muted small" id="kRole"></p>
+      <div class="qhead"><h1 style="margin:0" id="kName"></h1><span class="pill" id="kRec"></span></div>
+      <div class="row" style="margin-top:12px">
+        <div><div class="muted small">Overall score</div><div class="big-number" id="kScore"></div></div>
+        <div><div class="muted small">Interviewed on</div><div id="kDate" style="font-weight:600"></div></div>
+        <div><div class="muted small">Integrity check</div><div id="kIntegrity" style="font-weight:600"></div></div>
+      </div>
+    </div>
+
+    <div class="card" id="decisionCard">
+      <h2>Your decision</h2>
+      <div id="decisionDone" class="notice good hidden"></div>
+      <div id="decisionForm">
+        <div class="tabs" id="decBtns">
+          <button data-d="Shortlist">Shortlist</button><button data-d="Hold">Hold</button><button data-d="Reject">Reject</button>
+        </div>
+        <label for="dName">Your name</label><input type="text" id="dName" maxlength="120">
+        <label for="dComment">Comment (optional)</label><textarea id="dComment" maxlength="1000"></textarea>
+        <p class="small" id="dError" style="color:var(--bad)"></p>
+        <button id="btnDecide">Submit decision</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Summary</h2>
+      <p id="kSummary"></p>
+      <div class="row">
+        <div><h3>Strengths</h3><ul id="kStrengths" style="padding-left:20px;margin:0"></ul></div>
+        <div><h3>Concerns</h3><ul id="kConcerns" style="padding-left:20px;margin:0"></ul></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Watch first</h2>
+      <p class="muted small">The candidate's strongest answers, chosen by our reviewer.</p>
+      <div id="kWatch"></div>
+    </div>
+
+    <div class="card">
+      <h2>Scores by area</h2>
+      <div class="bars" id="kBars"></div>
+    </div>
+
+    <div class="card">
+      <h2>Logistics</h2>
+      <div class="kv" id="kLogistics"></div>
+      <div id="kCV" style="margin-top:10px"></div>
+    </div>
+
+    <div class="card" id="probeCard">
+      <h2>Suggested questions for your interview</h2>
+      <ul id="kProbes" style="padding-left:20px;margin:0"></ul>
+    </div>
+
+    <div class="card">
+      <h2>All answers</h2>
+      <div id="kAll"></div>
+    </div>
+
+    <p class="muted small center" id="kFooter"></p>
+  </section>
+</main>
+
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script>
+(function () {
+  'use strict';
+  var $ = SS.$, esc = SS.esc;
+  var token = SS.param('c');
+  var data = null, decision = '';
+  SS.brand('Candidate profile');
+
+  function problem(t, x) { $('pTitle').textContent = t; $('pText').textContent = x; SS.screen('scrProblem'); }
+  if (!token) { problem('This link is not valid', 'Please open the full link from the message you received.'); return; }
+
+  SS.api('card.load', { c: token }).then(function (r) {
+    if (!r.ok) {
+      if (r.code === 'EXPIRED') problem('This link has expired', 'Please ask your EaseBiz contact to share the candidate profile again.');
+      else problem('This link is not valid', 'Please open the full link from the message you received.');
+      return;
+    }
+    data = r; render();
+  }).catch(function (e) { problem('The profile could not be loaded', SS.errText(e) + ' Please refresh the page in a minute.'); });
+
+  function answerBlock(a) {
+    return '<div class="qbox"><p style="margin:0 0 6px"><strong>Q' + a.qNo + '. ' + esc(a.text) + '</strong></p>' +
+      (a.file ? '<button class="small secondary" data-file="' + esc(a.file.fileId) + '" data-q="' + a.qNo + '">Play answer (' + esc(a.file.seconds) + ' s)</button><div id="w' + a.qNo + '_' + Math.random().toString(36).slice(2, 6) + '" class="vslot"></div>' : '<p class="muted small">Video no longer available.</p>') + '</div>';
+  }
+
+  function render() {
+    var c = data.candidate, rv = data.review, lg = data.logistics;
+    $('kRole').textContent = data.role.title + ' · ' + data.role.client;
+    $('kName').textContent = c.name;
+    $('kRec').textContent = c.recommendation || '';
+    $('kRec').className = 'pill ' + (c.recommendation === 'Recommend' ? 'good' : c.recommendation === 'Consider' ? 'warn' : '');
+    $('kScore').innerHTML = esc(c.overall) + '<span class="muted small"> / 100</span>';
+    $('kDate').textContent = SS.fmtDate(c.interviewedOn, false);
+    $('kIntegrity').textContent = c.integrity;
+    $('kSummary').textContent = rv.summary || '';
+    $('kStrengths').innerHTML = (rv.strengths || []).map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') || '<li class="muted">–</li>';
+    $('kConcerns').innerHTML = (rv.concerns || []).map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') || '<li class="muted">–</li>';
+    var hl = (rv.highlights || []).map(function (q) { return data.answers.filter(function (a) { return a.qNo === q; })[0]; }).filter(Boolean);
+    $('kWatch').innerHTML = hl.length ? hl.map(answerBlock).join('') : '<p class="muted small">See all answers below.</p>';
+    $('kBars').innerHTML = Object.keys(data.bucketNames).filter(function (k) { return rv.buckets && rv.buckets[k]; }).map(function (k) {
+      var v = rv.buckets[k];
+      return '<div class="bar"><div>' + esc(data.bucketNames[k]) + '</div><div class="track"><div class="fill" style="width:' + (v / 5 * 100) + '%"></div></div><div><strong>' + esc(v) + '</strong>/5</div></div>';
+    }).join('');
+    $('kLogistics').innerHTML = '<div>Current CTC</div><div>' + esc(lg.currentCTC) + ' LPA</div><div>Expected CTC</div><div>' + esc(lg.expectedCTC) + ' LPA</div>' +
+      '<div>Notice period</div><div>' + esc(lg.noticeDays) + ' days</div><div>Current location</div><div>' + esc(lg.location) + '</div>' +
+      '<div>Willing to relocate</div><div>' + esc(lg.relocate) + '</div>' +
+      (rv.logistics === 'Mismatch' ? '<div>Note</div><div><span class="pill warn">Logistics mismatch</span> ' + esc(rv.logisticsNote) + '</div>' : '');
+    $('kCV').innerHTML = c.hasCV ? '<button class="small secondary" data-file="' + esc(c.cvFileId) + '" data-cv="1">Download CV</button>' : '';
+    $('kProbes').innerHTML = (rv.probes || []).map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('');
+    SS.show('probeCard', (rv.probes || []).length > 0);
+    $('kAll').innerHTML = data.answers.map(answerBlock).join('');
+    var co = data.company;
+    $('kFooter').innerHTML = 'Prepared by ' + esc(co.signature || 'Talent Acquisition Team') + ', ' + esc(co.name || 'EaseBiz HR Solutions Pvt. Ltd.') +
+      (co.phone || co.email ? '<br>' + esc([co.phone, co.email].filter(Boolean).join(' | ')) : '') +
+      '<br>Confidential: shared for this hiring decision only. Please do not forward or download the videos.';
+    if (c.decision) showDecided(c.decision, c.decidedAt, c.decisionComment);
+    SS.screen('scrCard');
+  }
+
+  function showDecided(d, at, comment) {
+    $('decisionDone').innerHTML = '<strong>Decision recorded: ' + esc(d) + '</strong>' + (at ? ' on ' + esc(SS.fmtDate(at)) : '') + (comment ? '<br>' + esc(comment) : '') +
+      '<br><span class="small">Thank you. Our team has been notified. To change your decision, choose again below.</span>';
+    SS.show('decisionDone', true);
+  }
+
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest && ev.target.closest('button[data-file]');
+    if (!b) return;
+    var label = b.textContent; b.textContent = 'Loading…'; b.disabled = true;
+    SS.api('card.media', { c: token, fileId: b.getAttribute('data-file') }, 120000).then(function (r) {
+      var url = URL.createObjectURL(SS.base64ToBlob(r.base64, r.mime));
+      if (b.getAttribute('data-cv')) {
+        var a = document.createElement('a'); a.href = url; a.download = r.name || 'CV'; document.body.appendChild(a); a.click(); a.remove();
+        b.textContent = label; b.disabled = false; return;
+      }
+      var slot = b.nextElementSibling;
+      slot.innerHTML = '<div class="video-wrap"><video src="' + url + '" controls playsinline controlsList="nodownload" oncontextmenu="return false"></video></div>';
+      slot.querySelector('video').play().catch(function () {});
+      b.remove();
+    }).catch(function (e) { b.textContent = label; b.disabled = false; SS.toast(SS.errText(e), 'bad'); });
+  });
+
+  $('decBtns').onclick = function (ev) {
+    var b = ev.target.closest('button[data-d]'); if (!b) return;
+    decision = b.getAttribute('data-d');
+    Array.prototype.forEach.call(this.children, function (x) { x.classList.toggle('on', x === b); });
+  };
+  $('btnDecide').onclick = function () {
+    var btn = this;
+    $('dError').textContent = '';
+    if (!decision) { $('dError').textContent = 'Please choose Shortlist, Hold or Reject.'; return; }
+    if (!$('dName').value.trim()) { $('dError').textContent = 'Please enter your name.'; return; }
+    btn.disabled = true; btn.textContent = 'Submitting…';
+    SS.api('card.decide', { c: token, decision: decision, comment: $('dComment').value.trim(), name: $('dName').value.trim() }).then(function () {
+      btn.disabled = false; btn.textContent = 'Submit decision';
+      showDecided(decision, new Date().toISOString(), $('dComment').value.trim());
+      SS.toast('Decision recorded. Thank you.', 'good');
+    }).catch(function (e) { btn.disabled = false; btn.textContent = 'Submit decision'; $('dError').textContent = SS.errText(e); });
+  };
+})();
+</script>
+</body>
+</html>

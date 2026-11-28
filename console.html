@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Recruiter console – EaseBiz SmartScreen</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header id="brandHeader"></header>
+<main class="wide">
+  <div id="topbar" class="hidden" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+    <div><button class="ghost" id="navHome">← All roles</button></div>
+    <div class="muted small"><span id="whoami"></span> · <button class="ghost" id="btnLogout">Sign out</button></div>
+  </div>
+
+  <!-- Login -->
+  <section class="screen card hidden" id="scrLogin" style="max-width:420px;margin:30px auto">
+    <h2>Sign in</h2>
+    <label for="lEmail">Email</label><input type="email" id="lEmail" autocomplete="username">
+    <label for="lPin">PIN</label><input type="password" id="lPin" inputmode="numeric" autocomplete="current-password">
+    <p class="small" id="lError" style="color:var(--bad)"></p>
+    <button id="btnLogin">Sign in</button>
+  </section>
+
+  <!-- Dashboard -->
+  <section class="screen hidden" id="scrDash">
+    <div class="card">
+      <div class="qhead"><h2 style="margin:0">Roles</h2><button id="btnNewRole" class="small">+ New role</button></div>
+      <div id="dashTable"></div>
+    </div>
+  </section>
+
+  <!-- Role -->
+  <section class="screen hidden" id="scrRole">
+    <div class="card">
+      <div class="qhead"><h2 style="margin:0" id="roleHeading">New role</h2><span class="pill" id="roleStatus"></span></div>
+      <p class="muted small" id="roleMeta"></p>
+      <div class="tabs" id="roleTabs">
+        <button data-tab="tabDetails" class="on">1. Role and JD</button>
+        <button data-tab="tabQuestions">2. Questions</button>
+        <button data-tab="tabCandidates">3. Candidates</button>
+      </div>
+
+      <!-- Details -->
+      <div id="tabDetails">
+        <div class="row">
+          <div><label for="fClient">Client company</label><input type="text" id="fClient" maxlength="200"></div>
+          <div><label for="fTitle">Role title</label><input type="text" id="fTitle" maxlength="200"></div>
+        </div>
+        <div class="row">
+          <div><label for="fLevel">Level</label><select id="fLevel"><option>Entry</option><option selected>Mid</option><option>Leadership</option></select></div>
+          <div><label for="fLocation">Location</label><input type="text" id="fLocation" maxlength="200"></div>
+        </div>
+        <div class="row">
+          <div><label for="fCtcMin">CTC band from (₹ lakh)</label><input type="number" id="fCtcMin" step="0.1"></div>
+          <div><label for="fCtcMax">CTC band to (₹ lakh)</label><input type="number" id="fCtcMax" step="0.1"></div>
+          <div><label for="fNotice">Max notice period (days)</label><input type="number" id="fNotice"></div>
+        </div>
+        <label for="fMust">Must-haves (from the intake call)</label><textarea id="fMust"></textarea>
+        <label for="fNice">Nice-to-haves</label><textarea id="fNice"></textarea>
+        <label for="fValues">Client values and ways of working</label><textarea id="fValues"></textarea>
+        <label for="fJD">Job description (paste the full JD)</label><textarea id="fJD" style="min-height:200px"></textarea>
+        <label for="fClientEmails">Client contacts for sharing (emails, separated by commas)</label><input type="text" id="fClientEmails">
+        <label class="check"><input type="checkbox" id="fConfidential"> <span>Confidential mandate: hide the client's name from candidates and do not send the JD to the free AI service (use the Claude route instead)</span></label>
+        <p class="small" id="detailsError" style="color:var(--bad)"></p>
+        <button id="btnSaveRole">Save role</button>
+        <button id="btnSaveGenerate" class="secondary">Save and generate questions</button>
+      </div>
+
+      <!-- Questions -->
+      <div id="tabQuestions" class="hidden">
+        <div id="qNotices"></div>
+        <div id="qButtonsTop">
+          <button id="btnGenerate" class="small">Generate question set from JD</button>
+          <button id="btnClaudePrompt" class="small secondary">Copy prompt for Claude</button>
+          <button id="btnPasteClaude" class="small secondary">Paste Claude's answer</button>
+        </div>
+        <div id="pasteBox" class="hidden notice">
+          <label for="pasteArea">Paste Claude's full reply (the JSON) here</label>
+          <textarea id="pasteArea" style="min-height:140px"></textarea>
+          <button id="btnImport" class="small">Load questions</button>
+        </div>
+        <div id="qList"></div>
+        <button id="btnAddQ" class="small secondary">+ Add question</button>
+        <h3>Quick-fit must-haves (yes/no, asked before the video)</h3>
+        <div id="mhList"></div>
+        <div id="uncovered" class="muted small"></div>
+        <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
+        <div id="qActions"></div>
+      </div>
+
+      <!-- Candidates -->
+      <div id="tabCandidates" class="hidden">
+        <div id="inviteBlocked" class="notice warn hidden">Candidates can be invited once a Team Lead approves the question set.</div>
+        <div id="inviteForm">
+          <h3>Invite a candidate</h3>
+          <div class="row">
+            <div><label for="iName">Full name</label><input type="text" id="iName" maxlength="120"></div>
+            <div><label for="iPhone">WhatsApp number (with country code)</label><input type="tel" id="iPhone" placeholder="91XXXXXXXXXX"></div>
+            <div><label for="iEmail">Email</label><input type="email" id="iEmail"></div>
+          </div>
+          <label class="check"><input type="checkbox" id="iSendEmail" checked> <span>Also send the invitation by email</span></label>
+          <p class="small" id="inviteError" style="color:var(--bad)"></p>
+          <button id="btnInvite">Create invitation</button>
+          <div id="inviteResult" class="notice hidden"></div>
+        </div>
+        <h3>Candidates</h3>
+        <div id="candTable"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Candidate review -->
+  <section class="screen hidden" id="scrCand">
+    <div class="card">
+      <div class="qhead"><h2 style="margin:0" id="cName"></h2><span class="pill" id="cStatus"></span></div>
+      <p class="muted small" id="cMeta"></p>
+      <div id="cActions"></div>
+    </div>
+    <div class="row" style="align-items:flex-start">
+      <div class="card" style="flex:1 1 320px">
+        <h3 style="margin-top:0">Quick-fit</h3><div id="cQuickFit"></div>
+        <h3>Integrity</h3><div id="cIntegrity"></div>
+        <h3>Identity and room check</h3>
+        <div id="cIdentity"></div>
+      </div>
+      <div class="card" style="flex:2 1 520px">
+        <div class="qhead"><h3 style="margin:0">Answers</h3><span class="big-number" id="cOverall">–</span></div>
+        <p class="muted small">Score each answer straight after watching it, using the guide under the question. Write one evidence line for every score.</p>
+        <div id="cAnswers"></div>
+      </div>
+    </div>
+    <div class="card" id="cReviewCard">
+      <h3 style="margin-top:0">Summary for the client</h3>
+      <label for="rSummary">Summary (3 lines: who this person is and why they fit or don't)</label><textarea id="rSummary"></textarea>
+      <div class="row">
+        <div><label>Strengths (up to 3, each tied to an answer)</label><input type="text" id="rS1"><input type="text" id="rS2" style="margin-top:6px"><input type="text" id="rS3" style="margin-top:6px"></div>
+        <div><label>Concerns (up to 3, each tied to an answer)</label><input type="text" id="rC1"><input type="text" id="rC2" style="margin-top:6px"><input type="text" id="rC3" style="margin-top:6px"></div>
+      </div>
+      <label>Questions for the client's interview (from the concerns)</label>
+      <input type="text" id="rP1"><input type="text" id="rP2" style="margin-top:6px"><input type="text" id="rP3" style="margin-top:6px">
+      <div class="row">
+        <div><label for="rLogistics">Logistics fit</label><select id="rLogistics"><option>Fits</option><option>Mismatch</option></select></div>
+        <div style="flex:2 1 300px"><label for="rLogNote">Logistics note</label><input type="text" id="rLogNote"></div>
+      </div>
+      <label for="rIntegrity">Integrity finding (required for Amber or Red)</label><textarea id="rIntegrity"></textarea>
+      <p class="small" id="reviewError" style="color:var(--bad)"></p>
+      <button id="btnSaveDraft" class="secondary">Save draft</button>
+      <button id="btnCopyClaude" class="secondary">Copy notes for Claude to polish</button>
+      <button id="btnComplete">Mark review complete</button>
+    </div>
+  </section>
+</main>
+
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script>
+(function () {
+  'use strict';
+  var $ = SS.$, esc = SS.esc;
+  var BUCKETS = { A: 'Career snapshot', B: 'Role and technical depth', C: 'Behavioural (STAR)', D: 'Culture and work style', E: 'Motivation', F: 'Reverse question' };
+  var WEIGHTS = { A: 10, B: 40, C: 25, D: 10, E: 10, F: 5 };
+  var DEFAULT_SEC = { A: 90, B: 150, C: 150, D: 120, E: 90, F: 60 };
+  var PERSONAL = /\b(age|how old|married|marital|spouse|husband|wife|pregnan\w*|children|kids|family plan\w*|religio\w*|caste|health|disab\w*|medical|sexual|politic\w*)\b/i;
+  var session = null, me = null;
+  try { session = sessionStorage.getItem('ss_session'); me = JSON.parse(sessionStorage.getItem('ss_user') || 'null'); } catch (e) { /* ignore */ }
+  var role = null, questions = [], mustHaves = [], cand = null, candData = null;
+
+  SS.brand('Recruiter console');
+
+  function isLead() { return me && (me.role === 'Team Lead' || me.role === 'Administrator'); }
+  function api(action, data, ms) {
+    var d = { s: session }; Object.keys(data || {}).forEach(function (k) { d[k] = data[k]; });
+    return SS.api(action, d, ms).catch(function (e) {
+      if (e.code === 'SESSION_EXPIRED') { logout(true); throw new Error('Your session expired. Please sign in again.'); }
+      throw e;
+    });
+  }
+  function busy(btn, on, text) {
+    if (!btn) return;
+    if (on) { btn.dataset.label = btn.textContent; btn.textContent = text || 'Please wait…'; btn.disabled = true; }
+    else { btn.textContent = btn.dataset.label || btn.textContent; btn.disabled = false; }
+  }
+  function copy(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { SS.toast('Copied', 'good'); }, function () { prompt('Copy this text:', text); });
+    } else { prompt('Copy this text:', text); }
+  }
+  function statusPill(st) {
+    var cls = { 'Approved': 'good', 'Pending approval': 'warn', 'Draft': '', 'Closed': '', 'Invited': '', 'In progress': 'info',
+                'Quick-fit hold': 'warn', 'Completed': 'warn', 'Reviewed': 'info', 'Shared': 'info', 'Shortlist': 'good', 'Hold': 'warn', 'Reject': 'bad' }[st] || '';
+    return '<span class="pill ' + cls + '">' + esc(st || '') + '</span>';
+  }
+  function integrityPill(r) { return r ? '<span class="pill ' + ({ Green: 'good', Amber: 'warn', Red: 'bad' }[r] || '') + '">' + esc(r) + '</span>' : ''; }
+
+  // ---------------- auth ----------------
+  function logout(expired) {
+    if (!expired && session) api('auth.logout', {}).catch(function () {});
+    session = null; me = null;
+    try { sessionStorage.removeItem('ss_session'); sessionStorage.removeItem('ss_user'); } catch (e) { /* ignore */ }
+    SS.show('topbar', false);
+    SS.screen('scrLogin');
+    if (expired) $('lError').textContent = 'Your session expired. Please sign in again.';
+  }
+  $('btnLogout').onclick = function () { logout(false); };
+  $('btnLogin').onclick = function () {
+    var btn = this; busy(btn, true, 'Signing in…'); $('lError').textContent = '';
+    SS.api('auth.login', { email: $('lEmail').value.trim(), pin: $('lPin').value.trim() }).then(function (r) {
+      session = r.session; me = r.user;
+      try { sessionStorage.setItem('ss_session', session); sessionStorage.setItem('ss_user', JSON.stringify(me)); } catch (e) { /* ignore */ }
+      busy(btn, false); $('lPin').value = '';
+      home();
+    }).catch(function (e) { busy(btn, false); $('lError').textContent = SS.errText(e); });
+  };
+  $('lPin').onkeydown = function (e) { if (e.key === 'Enter') $('btnLogin').click(); };
+
+  // ---------------- dashboard ----------------
+  function home() {
+    SS.show('topbar', true);
+    $('whoami').textContent = me.name + ' (' + me.role + ')';
+    SS.screen('scrDash');
+    $('dashTable').innerHTML = '<div class="spinner"></div>';
+    api('con.dashboard').then(function (r) {
+      if (!r.roles.length) { $('dashTable').innerHTML = '<p class="muted">No roles yet. Click "+ New role" to start.</p>'; return; }
+      $('dashTable').innerHTML = '<table class="list"><tr><th>Role</th><th>Client</th><th>Status</th><th>Invited</th><th>Completed</th><th>To review</th><th>Awaiting Gate 2</th><th>Shortlisted</th></tr>' +
+        r.roles.map(function (x) {
+          return '<tr class="click" data-role="' + esc(x.roleId) + '"><td><strong>' + esc(x.title) + '</strong><br><span class="muted small">' + esc(x.roleId) + '</span></td><td>' + esc(x.client) +
+            '</td><td>' + statusPill(x.status) + '</td><td>' + x.invited + '</td><td>' + x.completed + '</td><td>' + (x.toReview ? '<strong>' + x.toReview + '</strong>' : 0) +
+            '</td><td>' + (x.awaitingGate2 ? '<strong>' + x.awaitingGate2 + '</strong>' : 0) + '</td><td>' + x.shortlisted + '</td></tr>';
+        }).join('') + '</table>';
+    }).catch(function (e) { $('dashTable').innerHTML = '<p class="notice bad">' + esc(SS.errText(e)) + '</p>'; });
+  }
+  $('dashTable').onclick = function (ev) { var tr = ev.target.closest('tr[data-role]'); if (tr) openRole(tr.getAttribute('data-role')); };
+  $('navHome').onclick = home;
+  $('btnNewRole').onclick = function () { role = null; questions = []; mustHaves = []; showRole(null); };
+
+  // ---------------- role ----------------
+  function tab(id) {
+    Array.prototype.forEach.call($('roleTabs').children, function (b) { b.classList.toggle('on', b.getAttribute('data-tab') === id); });
+    ['tabDetails', 'tabQuestions', 'tabCandidates'].forEach(function (t) { SS.show(t, t === id); });
+  }
+  $('roleTabs').onclick = function (ev) {
+    var b = ev.target.closest('button'); if (!b) return;
+    if (!role) { SS.toast('Save the role first.'); return; }
+    tab(b.getAttribute('data-tab'));
+  };
+  function openRole(id, tabId) {
+    SS.screen('scrRole'); $('qList').innerHTML = '<div class="spinner"></div>';
+    api('con.role.get', { roleId: id }).then(function (r) { applyRole(r); tab(tabId || (r.role.status === 'Approved' ? 'tabCandidates' : 'tabQuestions')); })
+      .catch(function (e) { SS.toast(SS.errText(e), 'bad'); });
+  }
+  function applyRole(r) {
+    role = r.role; questions = r.questions || []; mustHaves = role.quickFitQs || [];
+    showRole(role);
+    renderQuestions(r.gaps);
+    renderCandidates(r.candidates || []);
+  }
+  function showRole(r) {
+    SS.screen('scrRole');
+    var editable = !r || ['Draft', 'Pending approval'].indexOf(r.status) > -1;
+    $('roleHeading').textContent = r ? r.title + ' – ' + r.client : 'New role';
+    $('roleStatus').outerHTML = '<span class="pill" id="roleStatus"></span>';
+    $('roleStatus').outerHTML = r ? statusPill(r.status).replace('<span class="pill', '<span id="roleStatus" class="pill') : '<span class="pill" id="roleStatus"></span>';
+    $('roleMeta').textContent = r ? r.roleId + ' · created by ' + r.createdBy + (r.approvedBy ? ' · approved by ' + r.approvedBy + ' on ' + SS.fmtDate(r.approvedAt) : '') : 'Fill in the role and JD, then save.';
+    var map = { fClient: 'client', fTitle: 'title', fLevel: 'level', fLocation: 'location', fCtcMin: 'ctcMin', fCtcMax: 'ctcMax', fNotice: 'maxNotice',
+                fMust: 'mustHaves', fNice: 'niceToHaves', fValues: 'clientValues', fJD: 'jd', fClientEmails: 'clientEmails' };
+    Object.keys(map).forEach(function (id) { $(id).value = r ? (r[map[id]] === undefined ? '' : r[map[id]]) : (id === 'fLevel' ? 'Mid' : ''); $(id).disabled = !editable; });
+    $('fConfidential').checked = r ? r.confidential === 'Yes' : false; $('fConfidential').disabled = !editable;
+    SS.show('btnSaveRole', editable); SS.show('btnSaveGenerate', editable);
+    if (!r) { tab('tabDetails'); $('qList').innerHTML = ''; $('candTable').innerHTML = ''; }
+  }
+  function saveRole(btn) {
+    $('detailsError').textContent = '';
+    var data = { roleId: role ? role.roleId : '', client: $('fClient').value, title: $('fTitle').value, level: $('fLevel').value, location: $('fLocation').value,
+                 ctcMin: $('fCtcMin').value, ctcMax: $('fCtcMax').value, maxNotice: $('fNotice').value, mustHaves: $('fMust').value,
+                 niceToHaves: $('fNice').value, clientValues: $('fValues').value, jd: $('fJD').value, clientEmails: $('fClientEmails').value,
+                 confidential: $('fConfidential').checked ? 'Yes' : 'No' };
+    busy(btn, true, 'Saving…');
+    return api('con.role.save', { role: data }).then(function (r) {
+      busy(btn, false);
+      return api('con.role.get', { roleId: r.roleId });
+    }).then(function (r) { applyRole(r); SS.toast('Role saved', 'good'); return r; })
+      .catch(function (e) { busy(btn, false); $('detailsError').textContent = SS.errText(e); throw e; });
+  }
+  $('btnSaveRole').onclick = function () { saveRole(this).catch(function () {}); };
+  $('btnSaveGenerate').onclick = function () {
+    saveRole(this).then(function () { tab('tabQuestions'); generate(); }).catch(function () {});
+  };
+
+  // ---------------- questions ----------------
+  function issuesFor(q) {
+    var out = [];
+    var words = String(q.text || '').trim().split(/\s+/).filter(Boolean).length;
+    if (!String(q.text || '').trim()) out.push('Question is empty');
+    if (words > 40) out.push('Longer than 40 words');
+    if (PERSONAL.test(String(q.text))) out.push('Mentions a personal topic');
+    if (q.bucket !== 'F' && !String(q.jdRequirement || '').trim()) out.push('No JD requirement linked');
+    if ((String(q.text).match(/\?/g) || []).length > 2) out.push('May contain several questions');
+    return out;
+  }
+  function canEditQs() {
+    if (!role) return false;
+    if (role.status === 'Draft') return true;
+    return role.status === 'Pending approval' && isLead();
+  }
+  function renderQuestions(gaps) {
+    var edit = canEditQs();
+    var notes = [];
+    if (role && role.returnNote && role.status === 'Draft') notes.push('<div class="notice warn"><strong>Returned by the Team Lead:</strong> ' + esc(role.returnNote) + '</div>');
+    if (gaps && gaps.length) notes.push('<div class="notice warn"><strong>The JD is missing:</strong> ' + gaps.map(esc).join(' · ') + '. Add these in step 1 for sharper questions.</div>');
+    if (role && role.confidential === 'Yes' && edit) notes.push('<div class="notice">Confidential mandate: automatic drafting is off. Use <strong>Copy prompt for Claude</strong>, paste it into Claude, then <strong>Paste Claude\'s answer</strong> here.</div>');
+    if (role && role.status === 'Pending approval') notes.push('<div class="notice">' + (isLead() ? 'Review each question: edit or regenerate any that need work, then approve the set.' : 'Waiting for Team Lead approval.') + '</div>');
+    if (role && role.status === 'Approved') notes.push('<div class="notice good">Approved. These questions are locked and used for every candidate in this role.</div>');
+    $('qNotices').innerHTML = notes.join('');
+    SS.show('qButtonsTop', edit); SS.show('btnAddQ', edit);
+    SS.show('btnGenerate', edit && role.confidential !== 'Yes');
+    $('qList').innerHTML = questions.length ? questions.map(function (q, i) { return qBox(q, i, edit); }).join('') : '<p class="muted">No questions yet.</p>';
+    $('mhList').innerHTML = [0, 1, 2].map(function (i) {
+      var m = mustHaves[i] || { question: '', expected: 'Yes' };
+      return '<div class="row" style="margin-bottom:6px"><div style="flex:4 1 300px"><input type="text" data-mh="' + i + '" value="' + esc(m.question) + '" placeholder="e.g. Do you hold a valid driving licence?"' + (edit ? '' : ' disabled') + '></div>' +
+        '<div style="flex:1 1 120px"><select data-mhx="' + i + '"' + (edit ? '' : ' disabled') + '><option' + (m.expected !== 'No' ? ' selected' : '') + '>Yes</option><option' + (m.expected === 'No' ? ' selected' : '') + '>No</option></select></div></div>';
+    }).join('') + '<p class="muted small">Right column = the answer that qualifies. A candidate who gives the other answer is put on hold before the video, and you are alerted.</p>';
+    $('uncovered').innerHTML = role && role.uncovered && role.uncovered.length ? '<strong>JD requirements no question covers:</strong> ' + role.uncovered.map(esc).join(' · ') : '';
+    var acts = [];
+    if (role && role.status === 'Draft') acts.push('<button id="aSave" class="secondary">Save draft</button><button id="aSubmit">Submit for approval</button>');
+    if (role && role.status === 'Pending approval' && isLead()) acts.push('<button id="aSave" class="secondary">Save changes</button><button id="aApprove">Approve set</button><button id="aReturn" class="secondary">Return with a note</button>');
+    if (role && role.status === 'Approved' && isLead()) acts.push('<button id="aClose" class="secondary">Close role</button>');
+    $('qActions').innerHTML = acts.join('');
+    bindQActions();
+  }
+  function qBox(q, i, edit) {
+    var iss = issuesFor(q);
+    var dis = edit ? '' : ' disabled';
+    return '<div class="qbox' + (iss.length ? ' bad' : '') + '" data-i="' + i + '">' +
+      '<div class="qhead"><strong>Q' + (i + 1) + '</strong>' +
+      '<select data-f="bucket" style="width:auto;flex:0 1 260px"' + dis + '>' + Object.keys(BUCKETS).map(function (k) { return '<option value="' + k + '"' + (q.bucket === k ? ' selected' : '') + '>' + k + '. ' + BUCKETS[k] + '</option>'; }).join('') + '</select>' +
+      '<span class="small muted">Answer time <input type="number" data-f="answerSec" value="' + esc(q.answerSec) + '" style="width:80px;display:inline-block" min="30" max="300"' + dis + '> s</span>' +
+      (edit ? '<span><button class="small secondary" data-act="regen">Regenerate</button><button class="small ghost" data-act="del">Remove</button></span>' : '') + '</div>' +
+      '<textarea data-f="text" style="min-height:60px;margin-top:8px"' + dis + '>' + esc(q.text) + '</textarea>' +
+      (iss.length ? '<p class="small" style="color:var(--bad);margin:4px 0">' + iss.map(esc).join(' · ') + '</p>' : '') +
+      '<label>JD requirement tested</label><input type="text" data-f="jdRequirement" value="' + esc(q.jdRequirement) + '"' + dis + '>' +
+      '<div class="row"><div><label>Weak answer (1)</label><textarea data-f="weak" style="min-height:50px"' + dis + '>' + esc(q.weak) + '</textarea></div>' +
+      '<div><label>Sound answer (3)</label><textarea data-f="sound" style="min-height:50px"' + dis + '>' + esc(q.sound) + '</textarea></div>' +
+      '<div><label>Strong answer (5)</label><textarea data-f="strong" style="min-height:50px"' + dis + '>' + esc(q.strong) + '</textarea></div></div></div>';
+  }
+  function readQuestions() {
+    Array.prototype.forEach.call(document.querySelectorAll('#qList .qbox'), function (box) {
+      var q = questions[Number(box.getAttribute('data-i'))];
+      Array.prototype.forEach.call(box.querySelectorAll('[data-f]'), function (el) { q[el.getAttribute('data-f')] = el.value; });
+    });
+    mustHaves = [0, 1, 2].map(function (i) {
+      var t = document.querySelector('[data-mh="' + i + '"]'), x = document.querySelector('[data-mhx="' + i + '"]');
+      return { question: t ? t.value.trim() : '', expected: x ? x.value : 'Yes' };
+    }).filter(function (m) { return m.question; });
+  }
+  $('qList').oninput = function (ev) {
+    var box = ev.target.closest('.qbox'); if (!box) return;
+    readQuestions();
+    var q = questions[Number(box.getAttribute('data-i'))];
+    box.classList.toggle('bad', issuesFor(q).length > 0);
+  };
+  $('qList').onclick = function (ev) {
+    var b = ev.target.closest('button[data-act]'); if (!b) return;
+    var i = Number(b.closest('.qbox').getAttribute('data-i'));
+    readQuestions();
+    if (b.getAttribute('data-act') === 'del') { questions.splice(i, 1); renderQuestions(); return; }
+    var note = prompt('What should change in this question? (optional)', '');
+    if (note === null) return;
+    busy(b, true, 'Working…');
+    saveQuestions().then(function () {
+      return api('con.question.regenerate', { roleId: role.roleId, qNo: i + 1, note: note }, 90000);
+    }).then(function (r) {
+      questions[i] = r.question; renderQuestions(); SS.toast('New question drafted. Save to keep it.', 'good');
+    }).catch(function (e) { busy(b, false); SS.toast(SS.errText(e), 'bad'); });
+  };
+  $('btnAddQ').onclick = function () {
+    readQuestions();
+    questions.push({ bucket: 'B', text: '', jdRequirement: '', weak: '', sound: '', strong: '', answerSec: DEFAULT_SEC.B });
+    renderQuestions();
+  };
+  function saveQuestions() {
+    readQuestions();
+    return api('con.questions.save', { roleId: role.roleId, questions: questions, quickFitQs: mustHaves }).then(function (r) { applyRole(r); return r; });
+  }
+  function generate() {
+    var btn = $('btnGenerate');
+    if (role.confidential === 'Yes') { renderQuestions(); SS.toast('Confidential mandate: use "Copy prompt for Claude", then "Paste Claude\'s answer".'); return; }
+    if (questions.length && !confirm('Replace the current questions with a new AI-drafted set?')) return;
+    busy(btn, true, 'Drafting… (about a minute)');
+    $('qList').innerHTML = '<div class="spinner"></div><p class="center muted">Drafting questions from the JD…</p>';
+    api('con.role.generate', { roleId: role.roleId }, 150000).then(function (r) {
+      busy(btn, false); applyRole(r); renderQuestions(r.gaps); tab('tabQuestions'); SS.toast('Question set drafted. Check it, then submit for approval.', 'good');
+    }).catch(function (e) { busy(btn, false); renderQuestions(); SS.toast(SS.errText(e), 'bad'); });
+  }
+  $('btnGenerate').onclick = generate;
+  $('btnClaudePrompt').onclick = function () {
+    api('con.role.prompt', { roleId: role.roleId }).then(function (r) { copy(r.prompt); SS.toast('Prompt copied. Paste it into Claude.', 'good'); })
+      .catch(function (e) { SS.toast(SS.errText(e), 'bad'); });
+  };
+  $('btnPasteClaude').onclick = function () { SS.show('pasteBox', $('pasteBox').classList.contains('hidden')); };
+  $('btnImport').onclick = function () {
+    var txt = $('pasteArea').value, m = txt.match(/\{[\s\S]*\}/), j;
+    try { j = JSON.parse(m[0]); } catch (e) { SS.toast('Could not read that text. Paste Claude\'s full reply, including the { } brackets.', 'bad'); return; }
+    questions = (j.questions || []).map(function (q) {
+      var b = String(q.bucket || 'B').toUpperCase().charAt(0); if (!BUCKETS[b]) b = 'B';
+      return { bucket: b, text: q.text || '', jdRequirement: q.jdRequirement || '', weak: q.weak || '', sound: q.sound || '', strong: q.strong || '', answerSec: DEFAULT_SEC[b] };
+    });
+    mustHaves = (j.mustHaves || []).slice(0, 3).map(function (x) { return { question: x.question || '', expected: x.expected === 'No' ? 'No' : 'Yes' }; });
+    role.uncovered = j.uncovered || [];
+    $('pasteArea').value = ''; SS.show('pasteBox', false);
+    renderQuestions(); SS.toast('Questions loaded. Click Save draft to keep them.', 'good');
+  };
+  function bindQActions() {
+    var s = $('aSave'), sub = $('aSubmit'), ap = $('aApprove'), rt = $('aReturn'), cl = $('aClose');
+    if (s) s.onclick = function () { var b = this; busy(b, true, 'Saving…'); saveQuestions().then(function () { SS.toast('Saved', 'good'); }).catch(function (e) { busy(b, false); SS.toast(SS.errText(e), 'bad'); }); };
+    if (sub) sub.onclick = function () {
+      var b = this; readQuestions();
+      var bad = questions.filter(function (q) { return issuesFor(q).length; });
+      if (bad.length) { SS.toast('Fix the questions marked in red first.', 'bad'); return; }
+      busy(b, true, 'Submitting…');
+      saveQuestions().then(function () { return api('con.role.submit', { roleId: role.roleId }); })
+        .then(function (r) { applyRole(r); SS.toast('Submitted to the Team Lead for approval.', 'good'); })
+        .catch(function (e) { busy(b, false); SS.toast(SS.errText(e), 'bad'); });
+    };
+    if (ap) ap.onclick = function () {
+      var b = this; busy(b, true, 'Approving…');
+      saveQuestions().then(function () { return api('con.role.approve', { roleId: role.roleId }); })
+        .then(function (r) { applyRole(r); tab('tabCandidates'); SS.toast('Approved. Candidates can now be invited.', 'good'); })
+        .catch(function (e) { busy(b, false); SS.toast(SS.errText(e), 'bad'); });
+    };
+    if (rt) rt.onclick = function () {
+      var note = prompt('What should the recruiter change?', ''); if (!note) return;
+      api('con.role.return', { roleId: role.roleId, note: note }).then(function (r) { applyRole(r); SS.toast('Returned to the recruiter.', 'good'); })
+        .catch(function (e) { SS.toast(SS.errText(e), 'bad'); });
+    };
+    if (cl) cl.onclick = function () {
+      if (!confirm('Close this role? No new candidates can be invited.')) return;
+      api('con.role.close', { roleId: role.roleId }).then(function (r) { applyRole(r); }).catch(function (e) { SS.toast(SS.errText(e), 'bad'); });
+    };
+  }
+
+  // ---------------- candidates (role) ----------------
+  function renderCandidates(list) {
+    var approved = role && role.status === 'Approved';
+    SS.show('inviteBlocked', !approved); SS.show('inviteForm', approved);
+    if (!list.length) { $('candTable').innerHTML = '<p class="muted">No candidates yet.</p>'; return; }
+    $('candTable').innerHTML = '<table class="list"><tr><th>Candidate</th><th>Status</th><th>Quick-fit</th><th>Score</th><th>Integrity</th><th>Client</th></tr>' +
+      list.map(function (c) {
+        return '<tr class="click" data-cand="' + esc(c.candId) + '"><td><strong>' + esc(c.name) + '</strong><br><span class="muted small">Invited ' + esc(SS.fmtDate(c.invitedAt, false)) + '</span></td>' +
+          '<td>' + statusPill(c.status) + '</td><td>' + (c.quickFitFlags && c.quickFitFlags.length ? '<span class="pill warn">' + c.quickFitFlags.length + ' flag(s)</span>' : '') + '</td>' +
+          '<td>' + (c.overall ? '<strong>' + esc(c.overall) + '</strong> <span class="small muted">' + esc(c.recommendation) + '</span>' : '') + '</td>' +
+          '<td>' + integrityPill(c.integrity) + '</td><td>' + (c.decision ? statusPill(c.decision) : '') + '</td></tr>';
+      }).join('') + '</table>';
+  }
+  $('candTable').onclick = function (ev) { var tr = ev.target.closest('tr[data-cand]'); if (tr) openCandidate(tr.getAttribute('data-cand')); };
+
+  function inviteBox(r) {
+    var parts = ['<strong>Invitation ready.</strong>' + (r.emailed ? ' Email sent.' : '')];
+    if (r.whatsapp) parts.push('<a class="btn small" href="' + esc(r.whatsapp) + '" target="_blank" rel="noopener">Send on WhatsApp</a>');
+    parts.push('<button class="small secondary" data-copy="msg">Copy message</button><button class="small secondary" data-copy="link">Copy link</button>');
+    $('inviteResult').innerHTML = parts.join(' ');
+    $('inviteResult').onclick = function (ev) {
+      var k = ev.target.getAttribute('data-copy'); if (!k) return;
+      copy(k === 'msg' ? r.message : r.link);
+    };
+    SS.show('inviteResult', true);
+  }
+  function invite(confirmDup) {
+    var btn = $('btnInvite');
+    $('inviteError').textContent = '';
+    busy(btn, true, 'Creating…');
+    api('con.candidate.invite', { roleId: role.roleId, name: $('iName').value.trim(), phone: $('iPhone').value.trim(), email: $('iEmail').value.trim(),
+                                  sendEmail: $('iSendEmail').checked, confirmDuplicate: !!confirmDup }).then(function (r) {
+      busy(btn, false);
+      if (r.duplicate) {
+        var msg = 'This candidate is already in SmartScreen:\n' + r.duplicate.map(function (d) { return '• ' + d.name + ' – ' + d.role + ' (' + d.client + '), ' + d.status; }).join('\n') +
+          '\n\nCheck ownership and that they have not been submitted to this client in the last 6 months. Invite anyway?';
+        if (confirm(msg)) invite(true);
+        return;
+      }
+      inviteBox(r);
+      $('iName').value = ''; $('iPhone').value = ''; $('iEmail').value = '';
+      api('con.role.get', { roleId: role.roleId }).then(function (x) { renderCandidates(x.candidates); });
+    }).catch(function (e) { busy(btn, false); $('inviteError').textContent = SS.errText(e); });
+  }
+  $('btnInvite').onclick = function () { invite(false); };
+
+  // ---------------- candidate review ----------------
+  function openCandidate(id) {
+    SS.screen('scrCand');
+    $('cAnswers').innerHTML = '<div class="spinner"></div>';
+    api('con.candidate.get', { candId: id }).then(renderCand).catch(function (e) { SS.toast(SS.errText(e), 'bad'); });
+  }
+  function renderCand(r) {
+    candData = r; cand = r.candidate;
+    var rv = cand.review || {};
+    var editable = ['Completed', 'Reviewed'].indexOf(cand.status) > -1;
+    $('cName').textContent = cand.name;
+    $('cStatus').outerHTML = statusPill(cand.status).replace('<span class="pill', '<span id="cStatus" class="pill');
+    $('cMeta').innerHTML = esc(r.role.title) + ' – ' + esc(r.role.client) + ' · ' + esc(cand.phone || '') + ' ' + esc(cand.email || '') +
+      ' · invited ' + esc(SS.fmtDate(cand.invitedAt)) + ' by ' + esc(cand.invitedBy) + (cand.completedAt ? ' · completed ' + esc(SS.fmtDate(cand.completedAt)) : ' · deadline ' + esc(SS.fmtDate(cand.deadline))) +
+      (cand.rating ? ' · experience rating ' + esc(cand.rating) + '/5' : '');
+    // actions
+    var acts = [];
+    if (['Invited', 'In progress'].indexOf(cand.status) > -1) {
+      acts.push('<button class="small secondary" data-a="copyInvite">Copy invitation link</button>');
+      acts.push('<button class="small secondary" data-a="extend">Extend deadline by 24 hours</button>');
+      acts.push('<button class="small secondary" data-a="reset">Unlock for a new device</button>');
+    }
+    if (cand.status === 'Quick-fit hold') acts.push('<button class="small" data-a="reopen">Reopen the interview</button>');
+    if (cand.status === 'Reviewed' && isLead()) acts.push('<button data-a="share">Gate 2: share with client</button>');
+    if (cand.cardLink) acts.push('<button class="small secondary" data-a="copyCard">Copy client card link</button>');
+    if (cand.decision) acts.push('<div class="notice ' + (cand.decision === 'Shortlist' ? 'good' : cand.decision === 'Reject' ? 'bad' : 'warn') + '"><strong>Client decision: ' + esc(cand.decision) + '</strong> by ' + esc(cand.decisionBy) + ' on ' + esc(SS.fmtDate(cand.decidedAt)) + (cand.decisionComment ? '<br>' + esc(cand.decisionComment) : '') + '</div>');
+    $('cActions').innerHTML = acts.join(' ');
+    // quick-fit
+    var qf = cand.quickFit;
+    $('cQuickFit').innerHTML = qf ? '<div class="kv"><div>Current CTC</div><div>' + esc(qf.currentCTC) + ' LPA</div><div>Expected CTC</div><div>' + esc(qf.expectedCTC) + ' LPA</div><div>Notice period</div><div>' + esc(qf.noticeDays) + ' days</div><div>Location</div><div>' + esc(qf.location) + '</div><div>Will relocate</div><div>' + esc(qf.relocate) + '</div>' +
+      (qf.mustHaves || []).map(function (m) { return '<div>' + esc(m.question) + '</div><div>' + esc(m.answer) + (m.answer !== m.expected ? ' <span class="pill warn">not met</span>' : '') + '</div>'; }).join('') + '</div>' +
+      (cand.quickFitFlags.length ? '<div class="notice warn small">' + cand.quickFitFlags.map(esc).join('<br>') + '</div>' : '') +
+      (cand.cvFileId ? '<button class="small secondary" data-file="' + esc(cand.cvFileId) + '" data-kind="cv">Download CV</button>' : '<p class="muted small">No CV uploaded.</p>')
+      : '<p class="muted small">Not completed yet.</p>';
+    // integrity
+    var idt = cand.integrityDetail;
+    var dev = r.events.filter(function (e) { return e.type === 'device'; }).map(function (e) { return e.detail; })[0];
+    var flagged = r.events.filter(function (e) { return e.severity === 'Major' || e.severity === 'Minor'; });
+    $('cIntegrity').innerHTML = (cand.integrity ? '<p>' + integrityPill(cand.integrity) + '</p>' : '<p class="muted small">Calculated when the interview is completed.</p>') +
+      (idt ? (idt.major || []).map(function (x) { return '<div class="small" style="color:var(--bad)">Major: ' + esc(x) + '</div>'; }).join('') + (idt.minor || []).map(function (x) { return '<div class="small">Minor: ' + esc(x) + '</div>'; }).join('') : '') +
+      (dev ? '<p class="muted small">Device: ' + esc(dev) + '</p>' : '') +
+      (flagged.length ? '<table class="list small" style="margin-top:6px"><tr><th>Time</th><th>Q</th><th>Event</th></tr>' + flagged.map(function (e) {
+        return '<tr><td>' + esc(new Date(e.at).toLocaleTimeString('en-IN')) + '</td><td>' + esc(e.qNo) + '</td><td>' + esc(e.detail || e.type) + ' <span class="pill ' + (e.severity === 'Major' ? 'bad' : 'warn') + '">' + esc(e.severity) + '</span></td></tr>';
+      }).join('') + '</table>' : '');
+    $('cIdentity').innerHTML = (cand.idFileId ? '<button class="small secondary" data-file="' + esc(cand.idFileId) + '" data-kind="img">Show ID photo</button>' : '<span class="muted small">No ID photo.</span>') +
+      (cand.roomFileId ? ' <button class="small secondary" data-file="' + esc(cand.roomFileId) + '" data-kind="video">Play room scan</button>' : '') + '<div id="idMedia"></div>';
+    // answers
+    var ansBy = {}; r.answers.forEach(function (a) { ansBy[a.qNo] = a; });
+    var scores = rv.scores || {}, evidence = rv.evidence || {}, hl = rv.highlights || [];
+    var notDone = ['Invited', 'In progress', 'Quick-fit hold'].indexOf(cand.status) > -1;
+    $('cAnswers').innerHTML = notDone ? '<p class="notice">The candidate has not completed the interview yet. Answers appear here once it is submitted.</p>' : r.questions.map(function (q) {
+      var a = ansBy[q.qNo];
+      return '<div class="qbox" data-q="' + q.qNo + '"><div class="qhead"><strong>Q' + q.qNo + ' · ' + esc(BUCKETS[q.bucket]) + '</strong>' +
+        (a ? '<span class="muted small">' + esc(a.seconds) + ' s answer</span>' : '<span class="pill">Not answered</span>') + '</div>' +
+        '<p style="margin:6px 0"><strong>' + esc(q.text) + '</strong></p><p class="muted small">Tests: ' + esc(q.jdRequirement) + '</p>' +
+        (a && a.fileId ? '<button class="small secondary" data-file="' + esc(a.fileId) + '" data-kind="video" data-target="v' + q.qNo + '">Play answer</button><div id="v' + q.qNo + '"></div>' : a ? '<p class="muted small">Video deleted under the retention rule.</p>' : '') +
+        '<details class="small" style="margin:8px 0"><summary>Scoring guide</summary><p><strong>1 – Weak:</strong> ' + esc(q.weak) + '</p><p><strong>3 – Sound:</strong> ' + esc(q.sound) + '</p><p><strong>5 – Strong:</strong> ' + esc(q.strong) + '</p></details>' +
+        '<div class="score-btns">' + [1, 2, 3, 4, 5].map(function (n) { return '<button type="button" data-score="' + n + '" class="' + (Number(scores[q.qNo]) === n ? 'on' : '') + '"' + (editable ? '' : ' disabled') + '>' + n + '</button>'; }).join('') + '</div>' +
+        '<input type="text" data-ev="' + q.qNo + '" placeholder="Evidence: what the candidate said or did" value="' + esc(evidence[q.qNo] || '') + '"' + (editable ? '' : ' disabled') + '>' +
+        '<label class="check small"><input type="checkbox" data-hl="' + q.qNo + '"' + (hl.indexOf(q.qNo) > -1 ? ' checked' : '') + (editable ? '' : ' disabled') + '> <span>Best answer: show it first to the client</span></label></div>';
+    }).join('');
+    // review fields
+    $('rSummary').value = rv.summary || '';
+    ['rS1', 'rS2', 'rS3'].forEach(function (id, i) { $(id).value = (rv.strengths || [])[i] || ''; });
+    ['rC1', 'rC2', 'rC3'].forEach(function (id, i) { $(id).value = (rv.concerns || [])[i] || ''; });
+    ['rP1', 'rP2', 'rP3'].forEach(function (id, i) { $(id).value = (rv.probes || [])[i] || ''; });
+    $('rLogistics').value = rv.logistics || (cand.quickFitFlags.length ? 'Mismatch' : 'Fits');
+    $('rLogNote').value = rv.logisticsNote || (cand.quickFitFlags.length ? cand.quickFitFlags.join('; ') : '');
+    $('rIntegrity').value = rv.integrityFinding || '';
+    Array.prototype.forEach.call(document.querySelectorAll('#cReviewCard input, #cReviewCard textarea, #cReviewCard select'), function (el) { el.disabled = !editable; });
+    SS.show('cReviewCard', ['Completed', 'Reviewed', 'Shared', 'Shortlist', 'Hold', 'Reject'].indexOf(cand.status) > -1);
+    SS.show('btnSaveDraft', editable); SS.show('btnComplete', editable); SS.show('btnCopyClaude', editable);
+    updateOverall();
+  }
+  function collectReview() {
+    var scores = {}, evidence = {}, highlights = [];
+    Array.prototype.forEach.call(document.querySelectorAll('#cAnswers .qbox'), function (box) {
+      var q = Number(box.getAttribute('data-q'));
+      var on = box.querySelector('.score-btns button.on');
+      if (on) scores[q] = Number(on.getAttribute('data-score'));
+      evidence[q] = box.querySelector('[data-ev]').value.trim();
+      if (box.querySelector('[data-hl]').checked) highlights.push(q);
+    });
+    var vals = function (ids) { return ids.map(function (id) { return $(id).value.trim(); }).filter(Boolean); };
+    return { scores: scores, evidence: evidence, highlights: highlights, summary: $('rSummary').value.trim(),
+             strengths: vals(['rS1', 'rS2', 'rS3']), concerns: vals(['rC1', 'rC2', 'rC3']), probes: vals(['rP1', 'rP2', 'rP3']),
+             logistics: $('rLogistics').value, logisticsNote: $('rLogNote').value.trim(), integrityFinding: $('rIntegrity').value.trim() };
+  }
+  function updateOverall() {
+    if (!candData) return;
+    var rv = collectReview(), by = {};
+    candData.questions.forEach(function (q) { var s = rv.scores[q.qNo]; if (s) (by[q.bucket] = by[q.bucket] || []).push(s); });
+    var tot = 0, w = 0;
+    Object.keys(by).forEach(function (k) { var avg = by[k].reduce(function (a, b) { return a + b; }, 0) / by[k].length; tot += avg * WEIGHTS[k]; w += WEIGHTS[k]; });
+    var overall = w ? Math.round(tot / w * 20) : 0;
+    var rec = overall >= 75 ? 'Recommend' : overall >= 60 ? 'Consider' : 'Not recommended';
+    $('cOverall').innerHTML = w ? overall + ' <span class="small muted">/ 100 · ' + rec + '</span>' : '–';
+  }
+  $('cAnswers').onclick = function (ev) {
+    var sb = ev.target.closest('button[data-score]');
+    if (sb && !sb.disabled) {
+      Array.prototype.forEach.call(sb.parentNode.children, function (b) { b.classList.toggle('on', b === sb); });
+      updateOverall(); return;
+    }
+    mediaClick(ev);
+  };
+  $('cIdentity').onclick = mediaClick;
+  $('cQuickFit').onclick = mediaClick;
+  function mediaClick(ev) {
+    var b = ev.target.closest('button[data-file]'); if (!b) return;
+    var kind = b.getAttribute('data-kind');
+    busy(b, true, 'Loading…');
+    api('con.media', { candId: cand.candId, fileId: b.getAttribute('data-file') }, 120000).then(function (r) {
+      busy(b, false);
+      var blob = SS.base64ToBlob(r.base64, r.mime), url = URL.createObjectURL(blob);
+      if (kind === 'cv') { var a = document.createElement('a'); a.href = url; a.download = r.name || 'CV'; document.body.appendChild(a); a.click(); a.remove(); return; }
+      var target = $(b.getAttribute('data-target') || 'idMedia');
+      target.innerHTML = kind === 'img' ? '<div class="video-wrap"><img src="' + url + '" alt="ID photo"></div>' : '<div class="video-wrap"><video src="' + url + '" controls playsinline></video></div>';
+      var v = target.querySelector('video'); if (v) { v.playbackRate = 1.5; v.play().catch(function () {}); }
+      SS.show(b, false);
+    }).catch(function (e) { busy(b, false); SS.toast(SS.errText(e), 'bad'); });
+  }
+  $('cActions').onclick = function (ev) {
+    var b = ev.target.closest('button[data-a]'); if (!b) return;
+    var a = b.getAttribute('data-a');
+    if (a === 'copyInvite') { copy(cand.inviteLink); return; }
+    if (a === 'copyCard') { copy(cand.cardLink); return; }
+    if (a === 'share') { share(b, false); return; }
+    var action = { extend: 'con.candidate.extend', reset: 'con.candidate.reset', reopen: 'con.candidate.reopen' }[a];
+    busy(b, true);
+    api(action, { candId: cand.candId }).then(function () { SS.toast('Done', 'good'); openCandidate(cand.candId); })
+      .catch(function (e) { busy(b, false); SS.toast(SS.errText(e), 'bad'); });
+  };
+  function share(btn, redCleared) {
+    var sendEmail = candData.role.clientEmails ? confirm('Also email the client card to: ' + candData.role.clientEmails + '?\n\nOK = send email · Cancel = I will send it myself') : false;
+    busy(btn, true, 'Sharing…');
+    api('con.candidate.share', { candId: cand.candId, sendEmail: sendEmail, redCleared: redCleared }).then(function (r) {
+      busy(btn, false);
+      $('cActions').insertAdjacentHTML('beforeend', '<div class="notice good"><strong>Shared.</strong>' + (r.emailed ? ' Email sent to the client.' : '') +
+        ' <button class="small secondary" id="cpMsg">Copy message</button> <button class="small secondary" id="cpLink">Copy link</button></div>');
+      $('cpMsg').onclick = function () { copy(r.message); }; $('cpLink').onclick = function () { copy(r.link); };
+      SS.toast('Shared with the client', 'good');
+    }).catch(function (e) {
+      busy(btn, false);
+      if (e.code === 'RED_FLAG') {
+        if (confirm('This candidate has a Red integrity rating. Confirm that you have reviewed every flagged moment and cleared the candidate (your decision is recorded).')) share(btn, true);
+        return;
+      }
+      SS.toast(SS.errText(e), 'bad');
+    });
+  }
+  function saveReview(final, btn) {
+    $('reviewError').textContent = '';
+    var rv = collectReview();
+    if (final && (cand.integrity === 'Amber' || cand.integrity === 'Red') && !rv.integrityFinding) { $('reviewError').textContent = 'Write the integrity finding (required for Amber or Red).'; return; }
+    busy(btn, true, 'Saving…');
+    api('con.review.save', { candId: cand.candId, review: rv, final: final }).then(function (r) {
+      busy(btn, false); renderCand(r); SS.toast(final ? 'Review complete' + (isLead() ? '.' : '. The Team Lead can now share it (Gate 2).') : 'Draft saved', 'good');
+    }).catch(function (e) { busy(btn, false); $('reviewError').textContent = SS.errText(e); });
+  }
+  $('btnSaveDraft').onclick = function () { saveReview(false, this); };
+  $('btnComplete').onclick = function () { saveReview(true, this); };
+  $('btnCopyClaude').onclick = function () {
+    var rv = collectReview();
+    var notes = candData.questions.map(function (q) { return 'Q' + q.qNo + ' (' + BUCKETS[q.bucket] + '): score ' + (rv.scores[q.qNo] || '-') + '/5. Evidence: ' + (rv.evidence[q.qNo] || '-'); }).join('\n');
+    var text = 'Rewrite my reviewer notes below into a client-ready candidate summary for ' + candData.role.title + '.\nUse only what is in my notes. Do not add facts, scores or opinions.\nReturn:\n1. Summary: 3 lines on who this person is and why they fit or don\'t.\n2. Strengths: up to 3, each naming the answer it comes from.\n3. Concerns: up to 3, each naming the answer it comes from.\n4. Questions for the client\'s interview: 2-3, each probing one concern.\n\nMy notes:\n' + notes +
+      (rv.summary ? '\nMy draft summary: ' + rv.summary : '') + (rv.strengths.length ? '\nStrengths noted: ' + rv.strengths.join('; ') : '') + (rv.concerns.length ? '\nConcerns noted: ' + rv.concerns.join('; ') : '');
+    copy(text);
+  };
+  document.addEventListener('input', function (ev) { if (ev.target.closest && ev.target.closest('#cAnswers')) updateOverall(); });
+
+  // ---------------- start ----------------
+  if (!SS.configured()) { SS.screen('scrLogin'); $('lError').textContent = 'Setup not finished: paste the Web app URL into config.js.'; return; }
+  if (session && me) home(); else SS.screen('scrLogin');
+})();
+</script>
+</body>
+</html>
