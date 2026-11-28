@@ -27,7 +27,8 @@
   <!-- Dashboard -->
   <section class="screen hidden" id="scrDash">
     <div class="card">
-      <div class="qhead"><h2 style="margin:0">Roles</h2><button id="btnNewRole" class="small">+ New role</button></div>
+      <div class="qhead"><h2 style="margin:0">Roles</h2><span><button id="btnHealth" class="small secondary hidden">System health check</button> <button id="btnNewRole" class="small">+ New role</button></span></div>
+      <div id="healthBox" class="hidden"></div>
       <div id="dashTable"></div>
     </div>
   </section>
@@ -45,6 +46,12 @@
 
       <!-- Details -->
       <div id="tabDetails">
+        <div class="notice">
+          <label for="fBrief" style="margin-top:0">Quick start: describe the role in 2–3 lines</label>
+          <textarea id="fBrief" placeholder="e.g. Executive HR (recruitment) for an Ahmedabad recruitment consultancy, 1–3 years experience, end-to-end hiring for client mandates, salary negotiation, CTC 3–4.5 LPA, notice up to 30 days."></textarea>
+          <button id="btnFromBrief">Write the JD and questions with AI</button>
+          <p class="muted small" style="margin:6px 0 0">AI writes the full professional JD, fills in the form below and drafts the question set for Team Lead approval. Enter the client company first. Or skip this and paste an existing JD below.</p>
+        </div>
         <div class="row">
           <div><label for="fClient">Client company</label><input type="text" id="fClient" maxlength="200"></div>
           <div><label for="fTitle">Role title</label><input type="text" id="fTitle" maxlength="200"></div>
@@ -52,6 +59,10 @@
         <div class="row">
           <div><label for="fLevel">Level</label><select id="fLevel"><option>Entry</option><option selected>Mid</option><option>Leadership</option></select></div>
           <div><label for="fLocation">Location</label><input type="text" id="fLocation" maxlength="200"></div>
+          <div><label for="fQCount">Number of questions</label>
+            <select id="fQCount"><option value="Auto">Recommended for the level</option>
+              <option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option></select>
+            <span class="muted small" id="qEstimate"></span></div>
         </div>
         <div class="row">
           <div><label for="fCtcMin">CTC band from (₹ lakh)</label><input type="number" id="fCtcMin" step="0.1"></div>
@@ -62,6 +73,7 @@
         <label for="fNice">Nice-to-haves</label><textarea id="fNice"></textarea>
         <label for="fValues">Client values and ways of working</label><textarea id="fValues"></textarea>
         <label for="fJD">Job description (paste the full JD)</label><textarea id="fJD" style="min-height:200px"></textarea>
+        <button id="btnReadJD" class="small secondary">Read the JD and fill the form automatically</button>
         <label for="fClientEmails">Client contacts for sharing (emails, separated by commas)</label><input type="text" id="fClientEmails">
         <label class="check"><input type="checkbox" id="fConfidential"> <span>Confidential mandate: hide the client's name from candidates and do not send the JD to the free AI service (use the Claude route instead)</span></label>
         <p class="small" id="detailsError" style="color:var(--bad)"></p>
@@ -105,8 +117,14 @@
           <p class="small" id="inviteError" style="color:var(--bad)"></p>
           <button id="btnInvite">Create invitation</button>
           <div id="inviteResult" class="notice hidden"></div>
+          <details style="margin-top:12px"><summary><strong>Invite many candidates at once</strong></summary>
+            <p class="muted small">Paste one candidate per line: Name, WhatsApp number, Email (copied from Excel works too).</p>
+            <textarea id="bulkList" style="min-height:120px" placeholder="Priya Shah, 919812345678, priya@example.com"></textarea>
+            <button id="btnBulk" class="small">Create all invitations</button>
+            <div id="bulkResult"></div>
+          </details>
         </div>
-        <h3>Candidates</h3>
+        <div class="qhead"><h3>Candidates</h3><button id="btnCompare" class="small secondary">Comparison report (PDF)</button></div>
         <div id="candTable"></div>
       </div>
     </div>
@@ -118,6 +136,19 @@
       <div class="qhead"><h2 style="margin:0" id="cName"></h2><span class="pill" id="cStatus"></span></div>
       <p class="muted small" id="cMeta"></p>
       <div id="cActions"></div>
+    </div>
+    <div class="card" id="aiCard">
+      <div class="qhead"><h3 style="margin:0">System assessment (AI)</h3><span id="aiBadge"></span></div>
+      <div id="aiBody"></div>
+      <div id="aiProgress" class="notice hidden"></div>
+      <div id="aiButtons"></div>
+      <div id="aiPaste" class="notice hidden">
+        <p><strong>Using your Claude subscription:</strong> 1) click <em>Copy evaluation pack</em>, 2) open Claude and paste it, 3) copy Claude's full reply and paste it below.</p>
+        <button class="small" id="btnCopyPack">Copy evaluation pack</button>
+        <a class="btn small secondary" href="https://claude.ai/new" target="_blank" rel="noopener">Open Claude</a>
+        <textarea id="aiReply" style="min-height:120px;margin-top:8px" placeholder="Paste Claude's reply here"></textarea>
+        <button class="small" id="btnSaveReply">Save Claude's assessment</button>
+      </div>
     </div>
     <div class="row" style="align-items:flex-start">
       <div class="card" style="flex:1 1 320px">
@@ -133,7 +164,9 @@
       </div>
     </div>
     <div class="card" id="cReviewCard">
-      <h3 style="margin-top:0">Summary for the client</h3>
+      <h3 style="margin-top:0">Reviewer assessment</h3>
+      <p class="muted small">Pre-filled from the system assessment. Check it, adjust anything you disagree with, and add your own comments.</p>
+      <label for="rComments">Reviewer comments (shown separately from the system assessment)</label><textarea id="rComments"></textarea>
       <label for="rSummary">Summary (3 lines: who this person is and why they fit or don't)</label><textarea id="rSummary"></textarea>
       <div class="row">
         <div><label>Strengths (up to 3, each tied to an answer)</label><input type="text" id="rS1"><input type="text" id="rS2" style="margin-top:6px"><input type="text" id="rS3" style="margin-top:6px"></div>
@@ -148,7 +181,7 @@
       <label for="rIntegrity">Integrity finding (required for Amber or Red)</label><textarea id="rIntegrity"></textarea>
       <p class="small" id="reviewError" style="color:var(--bad)"></p>
       <button id="btnSaveDraft" class="secondary">Save draft</button>
-      <button id="btnCopyClaude" class="secondary">Copy notes for Claude to polish</button>
+      <button id="btnReportPdf" class="secondary">Download report card (PDF)</button>
       <button id="btnComplete">Mark review complete</button>
     </div>
   </section>
@@ -220,6 +253,7 @@
   function home() {
     SS.show('topbar', true);
     $('whoami').textContent = me.name + ' (' + me.role + ')';
+    SS.show('btnHealth', me.role === 'Administrator');
     SS.screen('scrDash');
     $('dashTable').innerHTML = '<div class="spinner"></div>';
     api('con.dashboard').then(function (r) {
@@ -232,6 +266,16 @@
         }).join('') + '</table>';
     }).catch(function (e) { $('dashTable').innerHTML = '<p class="notice bad">' + esc(SS.errText(e)) + '</p>'; });
   }
+  $('btnHealth').onclick = function () {
+    var b = this; busy(b, true, 'Checking…');
+    api('con.health', {}, 120000).then(function (r) {
+      busy(b, false);
+      $('healthBox').innerHTML = '<div class="notice ' + (r.problems ? 'warn' : 'good') + '"><strong>' + (r.problems ? r.problems + ' problem(s) to fix' : 'All checks passed') + '</strong></div>' +
+        '<table class="list small"><tr><th>Area</th><th>Status</th><th>Detail</th></tr>' + r.results.map(function (x) {
+          return '<tr><td>' + esc(x.area) + '</td><td><span class="pill ' + (x.status === 'OK' ? 'good' : x.status === 'Problem' ? 'bad' : 'warn') + '">' + esc(x.status) + '</span></td><td>' + esc(x.detail) + '</td></tr>'; }).join('') + '</table>';
+      SS.show('healthBox', true);
+    }).catch(function (e) { busy(b, false); SS.toast(SS.errText(e), 'bad'); });
+  };
   $('dashTable').onclick = function (ev) { var tr = ev.target.closest('tr[data-role]'); if (tr) openRole(tr.getAttribute('data-role')); };
   $('navHome').onclick = home;
   $('btnNewRole').onclick = function () { role = null; questions = []; mustHaves = []; showRole(null); };
@@ -265,8 +309,10 @@
     $('roleStatus').outerHTML = r ? statusPill(r.status).replace('<span class="pill', '<span id="roleStatus" class="pill') : '<span class="pill" id="roleStatus"></span>';
     $('roleMeta').textContent = r ? r.roleId + ' · created by ' + r.createdBy + (r.approvedBy ? ' · approved by ' + r.approvedBy + ' on ' + SS.fmtDate(r.approvedAt) : '') : 'Fill in the role and JD, then save.';
     var map = { fClient: 'client', fTitle: 'title', fLevel: 'level', fLocation: 'location', fCtcMin: 'ctcMin', fCtcMax: 'ctcMax', fNotice: 'maxNotice',
-                fMust: 'mustHaves', fNice: 'niceToHaves', fValues: 'clientValues', fJD: 'jd', fClientEmails: 'clientEmails' };
-    Object.keys(map).forEach(function (id) { $(id).value = r ? (r[map[id]] === undefined ? '' : r[map[id]]) : (id === 'fLevel' ? 'Mid' : ''); $(id).disabled = !editable; });
+                fMust: 'mustHaves', fNice: 'niceToHaves', fValues: 'clientValues', fJD: 'jd', fClientEmails: 'clientEmails', fQCount: 'questionCount' };
+    Object.keys(map).forEach(function (id) { $(id).value = r ? (r[map[id]] === undefined ? '' : r[map[id]]) : (id === 'fLevel' ? 'Mid' : id === 'fQCount' ? 'Auto' : ''); $(id).disabled = !editable; });
+    if (!$('fQCount').value) $('fQCount').value = 'Auto';
+    estimate();
     $('fConfidential').checked = r ? r.confidential === 'Yes' : false; $('fConfidential').disabled = !editable;
     SS.show('btnSaveRole', editable); SS.show('btnSaveGenerate', editable);
     if (!r) { tab('tabDetails'); $('qList').innerHTML = ''; $('candTable').innerHTML = ''; }
@@ -276,7 +322,7 @@
     var data = { roleId: role ? role.roleId : '', client: $('fClient').value, title: $('fTitle').value, level: $('fLevel').value, location: $('fLocation').value,
                  ctcMin: $('fCtcMin').value, ctcMax: $('fCtcMax').value, maxNotice: $('fNotice').value, mustHaves: $('fMust').value,
                  niceToHaves: $('fNice').value, clientValues: $('fValues').value, jd: $('fJD').value, clientEmails: $('fClientEmails').value,
-                 confidential: $('fConfidential').checked ? 'Yes' : 'No' };
+                 confidential: $('fConfidential').checked ? 'Yes' : 'No', questionCount: $('fQCount').value };
     busy(btn, true, 'Saving…');
     return api('con.role.save', { role: data }).then(function (r) {
       busy(btn, false);
@@ -513,7 +559,14 @@
     if (cand.status === 'Reviewed' && isLead()) acts.push('<button data-a="share">Gate 2: share with client</button>');
     if (cand.cardLink) acts.push('<button class="small secondary" data-a="copyCard">Copy client card link</button>');
     if (cand.decision) acts.push('<div class="notice ' + (cand.decision === 'Shortlist' ? 'good' : cand.decision === 'Reject' ? 'bad' : 'warn') + '"><strong>Client decision: ' + esc(cand.decision) + '</strong> by ' + esc(cand.decisionBy) + ' on ' + esc(SS.fmtDate(cand.decidedAt)) + (cand.decisionComment ? '<br>' + esc(cand.decisionComment) : '') + '</div>');
+    if (cand.email && !cand.regretSent && ['Completed', 'Reviewed', 'Hold', 'Reject'].indexOf(cand.status) > -1) acts.push('<button class="small secondary" data-a="regret">Send regret email</button>');
+    if (cand.regretSent) acts.push('<span class="pill">Regret email sent ' + esc(SS.fmtDate(cand.regretSent, false)) + '</span>');
+    if (cand.scheduledAt && ['Invited', 'In progress'].indexOf(cand.status) > -1) acts.push('<span class="pill info">Scheduled for ' + esc(SS.fmtDate(cand.scheduledAt)) + '</span>');
+    if (cand.clientInterview) acts.push('<div class="notice good"><strong>Client interview booked:</strong> ' + esc(SS.fmtDate(cand.clientInterview.at)) + ' · ' + esc(cand.clientInterview.mode) + (cand.clientInterview.place ? ' · ' + esc(cand.clientInterview.place) : '') + '</div>');
+    else if (cand.clientSlots) acts.push('<div class="notice">Client offered ' + cand.clientSlots.options.length + ' interview slot(s); waiting for the candidate to choose.</div>');
     $('cActions').innerHTML = acts.join(' ');
+    renderAi(r);
+    autoEvaluate();
     // quick-fit
     var qf = cand.quickFit;
     $('cQuickFit').innerHTML = qf ? '<div class="kv"><div>Current CTC</div><div>' + esc(qf.currentCTC) + ' LPA</div><div>Expected CTC</div><div>' + esc(qf.expectedCTC) + ' LPA</div><div>Notice period</div><div>' + esc(qf.noticeDays) + ' days</div><div>Location</div><div>' + esc(qf.location) + '</div><div>Will relocate</div><div>' + esc(qf.relocate) + '</div>' +
@@ -543,8 +596,11 @@
         (a ? '<span class="muted small">' + esc(a.seconds) + ' s answer</span>' : '<span class="pill">Not answered</span>') + '</div>' +
         '<p style="margin:6px 0"><strong>' + esc(q.text) + '</strong></p><p class="muted small">Tests: ' + esc(q.jdRequirement) + '</p>' +
         (a && a.fileId ? '<button class="small secondary" data-file="' + esc(a.fileId) + '" data-kind="video" data-target="v' + q.qNo + '">Play answer</button><div id="v' + q.qNo + '"></div>' : a ? '<p class="muted small">Video deleted under the retention rule.</p>' : '') +
+        aiLine(q.qNo) +
+        '<details class="small" style="margin:8px 0"' + (cand.transcripts[q.qNo] ? '' : '') + '><summary>Transcript' + (cand.transcripts[q.qNo] ? '' : ' (not yet transcribed)') + '</summary>' +
+        '<textarea data-tr="' + q.qNo + '" style="min-height:70px;margin-top:6px"' + (editable ? '' : ' disabled') + '>' + esc(cand.transcripts[q.qNo] || '') + '</textarea></details>' +
         '<details class="small" style="margin:8px 0"><summary>Scoring guide</summary><p><strong>1 – Weak:</strong> ' + esc(q.weak) + '</p><p><strong>3 – Sound:</strong> ' + esc(q.sound) + '</p><p><strong>5 – Strong:</strong> ' + esc(q.strong) + '</p></details>' +
-        '<div class="score-btns">' + [1, 2, 3, 4, 5].map(function (n) { return '<button type="button" data-score="' + n + '" class="' + (Number(scores[q.qNo]) === n ? 'on' : '') + '"' + (editable ? '' : ' disabled') + '>' + n + '</button>'; }).join('') + '</div>' +
+        '<div class="small muted" style="margin-top:6px">Reviewer score</div><div class="score-btns">' + [1, 2, 3, 4, 5].map(function (n) { return '<button type="button" data-score="' + n + '" class="' + (Number(scores[q.qNo]) === n ? 'on' : '') + '"' + (editable ? '' : ' disabled') + '>' + n + '</button>'; }).join('') + '</div>' +
         '<input type="text" data-ev="' + q.qNo + '" placeholder="Evidence: what the candidate said or did" value="' + esc(evidence[q.qNo] || '') + '"' + (editable ? '' : ' disabled') + '>' +
         '<label class="check small"><input type="checkbox" data-hl="' + q.qNo + '"' + (hl.indexOf(q.qNo) > -1 ? ' checked' : '') + (editable ? '' : ' disabled') + '> <span>Best answer: show it first to the client</span></label></div>';
     }).join('');
@@ -556,8 +612,10 @@
     $('rLogistics').value = rv.logistics || (cand.quickFitFlags.length ? 'Mismatch' : 'Fits');
     $('rLogNote').value = rv.logisticsNote || (cand.quickFitFlags.length ? cand.quickFitFlags.join('; ') : '');
     $('rIntegrity').value = rv.integrityFinding || '';
+    $('rComments').value = rv.reviewerComments || '';
     Array.prototype.forEach.call(document.querySelectorAll('#cReviewCard input, #cReviewCard textarea, #cReviewCard select'), function (el) { el.disabled = !editable; });
     SS.show('cReviewCard', ['Completed', 'Reviewed', 'Shared', 'Shortlist', 'Hold', 'Reject'].indexOf(cand.status) > -1);
+    SS.show('aiCard', !notDone);
     SS.show('btnSaveDraft', editable); SS.show('btnComplete', editable); SS.show('btnCopyClaude', editable);
     updateOverall();
   }
@@ -573,7 +631,8 @@
     var vals = function (ids) { return ids.map(function (id) { return $(id).value.trim(); }).filter(Boolean); };
     return { scores: scores, evidence: evidence, highlights: highlights, summary: $('rSummary').value.trim(),
              strengths: vals(['rS1', 'rS2', 'rS3']), concerns: vals(['rC1', 'rC2', 'rC3']), probes: vals(['rP1', 'rP2', 'rP3']),
-             logistics: $('rLogistics').value, logisticsNote: $('rLogNote').value.trim(), integrityFinding: $('rIntegrity').value.trim() };
+             logistics: $('rLogistics').value, logisticsNote: $('rLogNote').value.trim(), integrityFinding: $('rIntegrity').value.trim(),
+             reviewerComments: $('rComments').value.trim() };
   }
   function updateOverall() {
     if (!candData) return;
@@ -615,7 +674,8 @@
     if (a === 'copyInvite') { copy(cand.inviteLink); return; }
     if (a === 'copyCard') { copy(cand.cardLink); return; }
     if (a === 'share') { share(b, false); return; }
-    var action = { extend: 'con.candidate.extend', reset: 'con.candidate.reset', reopen: 'con.candidate.reopen' }[a];
+    if (a === 'regret' && !confirm('Send the professional regret email to ' + cand.name + ' now?')) return;
+    var action = { extend: 'con.candidate.extend', reset: 'con.candidate.reset', reopen: 'con.candidate.reopen', regret: 'con.candidate.regret' }[a];
     busy(b, true);
     api(action, { candId: cand.candId }).then(function () { SS.toast('Done', 'good'); openCandidate(cand.candId); })
       .catch(function (e) { busy(b, false); SS.toast(SS.errText(e), 'bad'); });
@@ -649,14 +709,242 @@
   }
   $('btnSaveDraft').onclick = function () { saveReview(false, this); };
   $('btnComplete').onclick = function () { saveReview(true, this); };
-  $('btnCopyClaude').onclick = function () {
-    var rv = collectReview();
-    var notes = candData.questions.map(function (q) { return 'Q' + q.qNo + ' (' + BUCKETS[q.bucket] + '): score ' + (rv.scores[q.qNo] || '-') + '/5. Evidence: ' + (rv.evidence[q.qNo] || '-'); }).join('\n');
-    var text = 'Rewrite my reviewer notes below into a client-ready candidate summary for ' + candData.role.title + '.\nUse only what is in my notes. Do not add facts, scores or opinions.\nReturn:\n1. Summary: 3 lines on who this person is and why they fit or don\'t.\n2. Strengths: up to 3, each naming the answer it comes from.\n3. Concerns: up to 3, each naming the answer it comes from.\n4. Questions for the client\'s interview: 2-3, each probing one concern.\n\nMy notes:\n' + notes +
-      (rv.summary ? '\nMy draft summary: ' + rv.summary : '') + (rv.strengths.length ? '\nStrengths noted: ' + rv.strengths.join('; ') : '') + (rv.concerns.length ? '\nConcerns noted: ' + rv.concerns.join('; ') : '');
-    copy(text);
+  function downloadB64(r) {
+    var url = URL.createObjectURL(SS.base64ToBlob(r.base64, r.mime));
+    var a = document.createElement('a'); a.href = url; a.download = r.name || 'report.pdf'; document.body.appendChild(a); a.click(); a.remove();
+  }
+  $('btnReportPdf').onclick = function () {
+    var b = this; busy(b, true, 'Preparing PDF…');
+    api('con.report', { candId: cand.candId }, 120000).then(function (r) { busy(b, false); downloadB64(r); })
+      .catch(function (e) { busy(b, false); SS.toast(SS.errText(e), 'bad'); });
   };
   document.addEventListener('input', function (ev) { if (ev.target.closest && ev.target.closest('#cAnswers')) updateOverall(); });
+
+  // ---------------- system assessment (AI) ----------------
+  var ASR_LIB = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2/dist/transformers.web.min.js';
+  var ASR_MODELS = ['onnx-community/whisper-base.en', 'Xenova/whisper-base.en'];
+  var asr = null;
+  function aiLine(qNo) {
+    var ai = cand.aiReport; if (!ai) return '';
+    var p = (ai.perQuestion || []).filter(function (x) { return x.qNo === qNo; })[0]; if (!p) return '';
+    var d = (ai.delivery || []).filter(function (x) { return x.qNo === qNo; })[0] || {};
+    return '<div class="notice small" style="margin:6px 0"><strong>System score: ' + esc(p.score) + '/5.</strong> ' + esc(p.comment) +
+      (p.evidence ? '<br><span class="muted">Evidence: “' + esc(p.evidence) + '”</span>' : '') +
+      (d.words !== undefined ? '<br><span class="muted">' + esc(d.wordsPerMinute || '–') + ' words/min · ' + esc(d.fillerWords) + ' filler words · facing camera ' + esc(d.facingCameraPct === '' ? '–' : d.facingCameraPct + '%') + '</span>' : '') + '</div>';
+  }
+  var autoRanFor = {};
+  function autoEvaluate() {
+    if (cand.status !== 'Completed' || cand.aiReport || autoRanFor[cand.candId] || !$('btnEval')) return;
+    if (candData.backgroundEval && !/failed/.test(cand.aiBy || '')) {
+      progress('<p>This interview is being evaluated automatically in the background. The report card will appear here, and be emailed to the recruiter, within about 10 minutes.</p>');
+      return;
+    }
+    autoRanFor[cand.candId] = true;
+    progress('<p>Starting the automatic evaluation…</p>');
+    setTimeout(function () { if ($('btnEval')) runEvaluation(true); }, 400);
+  }
+  function renderAi(r) {
+    var ai = cand.aiReport;
+    $('aiBadge').innerHTML = ai ? '<span class="pill good">Ready</span>' : '<span class="pill warn">Not run yet</span>';
+    if (ai) {
+      $('aiBody').innerHTML = '<div class="row"><div><div class="muted small">System score</div><div class="big-number">' + esc(ai.overall) + '<span class="small muted"> / 100</span></div><div>' + esc(ai.recommendation) + '</div></div>' +
+        '<div><div class="muted small">Communication</div><div class="big-number">' + esc(ai.communication.score) + '<span class="small muted"> / 5</span></div></div>' +
+        '<div style="flex:3 1 300px"><div class="muted small">Summary</div><p>' + esc(ai.summary) + '</p></div></div>' +
+        (ai.jdFit.length ? '<table class="list small"><tr><th>Requirement</th><th>Fit</th><th>Evidence</th></tr>' + ai.jdFit.map(function (j) {
+          return '<tr><td>' + esc(j.requirement) + '</td><td><span class="pill ' + (j.rating === 'Strong' ? 'good' : j.rating === 'Partial' ? 'warn' : 'bad') + '">' + esc(j.rating) + '</span></td><td>' + esc(j.evidence) + '</td></tr>'; }).join('') + '</table>' : '') +
+        '<div class="kv" style="margin-top:10px"><div>Communication</div><div>' + esc(ai.communication.comment) + '</div><div>Presence on camera</div><div>' + esc(ai.presence.comment) + '</div></div>' +
+        '<p class="muted small">Generated by ' + esc(cand.aiBy) + ' on ' + esc(SS.fmtDate(cand.aiAt)) + '.</p>';
+    } else {
+      $('aiBody').innerHTML = (cand.aiBy && /failed/.test(cand.aiBy) ? '<p class="notice warn">' + esc(cand.aiBy.replace(/failed:\d/, 'failed')) + '</p>' : '') + '<p class="muted">The evaluation starts automatically when you open a completed interview (you can also click <strong>Transcribe and evaluate</strong>). The answers are transcribed on this computer (use a laptop or desktop; the first time downloads the speech model, about 1–2 minutes), then Claude assesses them against the JD and scoring guides.</p>';
+    }
+    var editable = ['Completed', 'Reviewed'].indexOf(cand.status) > -1;
+    $('aiButtons').innerHTML = editable ? '<button id="btnEval">' + (ai ? 'Re-run evaluation' : 'Transcribe and evaluate') + '</button>' +
+      ' <button id="btnEvalOnly" class="secondary">Evaluate typed or edited transcripts</button>' : '';
+    SS.show('aiPaste', false);
+    if ($('btnEval')) $('btnEval').onclick = function () { runEvaluation(true); };
+    if ($('btnEvalOnly')) $('btnEvalOnly').onclick = function () { runEvaluation(false); };
+  }
+  function progress(html) { $('aiProgress').innerHTML = html; SS.show('aiProgress', !!html); }
+  function loadAsr() {
+    if (asr) return Promise.resolve(asr);
+    progress('<div class="spinner"></div><p class="center">Loading the speech model (first time only, about 1–2 minutes)…</p>');
+    return import(ASR_LIB).then(function (T) {
+      var device = navigator.gpu ? 'webgpu' : 'wasm';
+      var tryModel = function (i, last) {
+        if (i >= ASR_MODELS.length) return Promise.reject(last || new Error('Speech model unavailable'));
+        return T.pipeline('automatic-speech-recognition', ASR_MODELS[i], { device: device }).catch(function (e) {
+          if (device === 'webgpu') return T.pipeline('automatic-speech-recognition', ASR_MODELS[i], { device: 'wasm' });
+          throw e;
+        }).catch(function (e) { return tryModel(i + 1, e); });
+      };
+      return tryModel(0, null);
+    }).then(function (p) { asr = p; return p; });
+  }
+  /** Decodes a recording to 16 kHz mono samples, the format the speech model needs. */
+  function toPcm16k(blob) {
+    return blob.arrayBuffer().then(function (buf) {
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      var ctx = new Ctx();
+      return new Promise(function (res, rej) { ctx.decodeAudioData(buf, res, rej); }).then(function (audio) {
+        try { ctx.close(); } catch (e) { /* ignore */ }
+        var len = Math.ceil(audio.duration * 16000);
+        if (!len) return new Float32Array(0);
+        var off = new OfflineAudioContext(1, len, 16000);
+        var src = off.createBufferSource(); src.buffer = audio; src.connect(off.destination); src.start();
+        return off.startRendering().then(function (out) { return out.getChannelData(0); });
+      });
+    });
+  }
+  function transcribeAll() {
+    var answers = candData.answers.filter(function (a) { return a.fileId; });
+    if (!answers.length) return Promise.reject(new Error('No answer videos are available to transcribe.'));
+    var out = {};
+    return loadAsr().then(function (pipe) {
+      return answers.reduce(function (p, a, i) {
+        return p.then(function () {
+          progress('<div class="spinner"></div><p class="center">Transcribing answer ' + (i + 1) + ' of ' + answers.length + '…</p>');
+          return api('con.media', { candId: cand.candId, fileId: a.fileId }, 120000)
+            .then(function (m) { return toPcm16k(SS.base64ToBlob(m.base64, m.mime)); })
+            .then(function (pcm) { return pcm.length ? pipe(pcm, { chunk_length_s: 30, stride_length_s: 5 }) : { text: '' }; })
+            .then(function (res) {
+              out[a.qNo] = String((res && res.text) || '').trim();
+              var ta = document.querySelector('[data-tr="' + a.qNo + '"]'); if (ta) ta.value = out[a.qNo];
+            });
+        });
+      }, Promise.resolve());
+    }).then(function () { return out; });
+  }
+  function currentTranscripts() {
+    var t = {};
+    Array.prototype.forEach.call(document.querySelectorAll('[data-tr]'), function (ta) { t[ta.getAttribute('data-tr')] = ta.value.trim(); });
+    return t;
+  }
+  function runEvaluation(withTranscription) {
+    var btn = $('btnEval'); busy(btn, true, 'Working…');
+    var step = withTranscription ? transcribeAll().catch(function (e) {
+      throw new Error('Transcription could not run on this computer (' + SS.errText(e) + '). Use a laptop with Chrome or Edge, or open the Transcript boxes under each answer, type the key points, and click "Evaluate typed or edited transcripts".');
+    }) : Promise.resolve();
+    step.then(function () {
+      progress('<div class="spinner"></div><p class="center">Saving transcripts…</p>');
+      return api('con.transcripts.save', { candId: cand.candId, transcripts: currentTranscripts() });
+    }).then(function () {
+      if (candData.aiMode === 'api') {
+        progress('<div class="spinner"></div><p class="center">Claude is assessing the interview against the JD (about a minute)…</p>');
+        return api('con.ai.evaluate', { candId: cand.candId }, 240000).then(function (r) {
+          progress(''); busy(btn, false); renderCand(r); SS.toast('System assessment ready. The report card has been emailed to the recruiter.', 'good');
+        });
+      }
+      progress('');
+      busy(btn, false);
+      SS.show('aiPaste', true);
+      $('aiPaste').scrollIntoView({ behavior: 'smooth' });
+    }).catch(function (e) { progress(''); busy(btn, false); SS.toast(SS.errText(e), 'bad'); });
+  }
+  $('btnCopyPack').onclick = function () {
+    api('con.ai.pack', { candId: cand.candId }).then(function (r) { copy(r.prompt); SS.toast('Copied. Paste it into Claude.', 'good'); })
+      .catch(function (e) { SS.toast(SS.errText(e), 'bad'); });
+  };
+  $('btnSaveReply').onclick = function () {
+    var b = this, txt = $('aiReply').value;
+    if (txt.indexOf('{') < 0) { SS.toast('Paste Claude\'s full reply, including the { } brackets.', 'bad'); return; }
+    busy(b, true, 'Saving…');
+    api('con.ai.save', { candId: cand.candId, report: txt }, 120000).then(function (r) {
+      busy(b, false); $('aiReply').value = ''; renderCand(r); SS.toast('System assessment saved. The report card has been emailed to the recruiter.', 'good');
+    }).catch(function (e) { busy(b, false); SS.toast(SS.errText(e), 'bad'); });
+  };
+
+  // ---------------- question count and time estimate ----------------
+  var DEFAULT_COUNT = { Entry: 7, Mid: 9, Leadership: 10 };
+  function plan(n, level) {
+    if (n === 5) return { A: 1, B: 2, C: 1, D: 0, E: 1, F: 0 };
+    if (n === 6) return { A: 1, B: 2, C: 1, D: 1, E: 1, F: 0 };
+    var rest = n - 4, b = Math.ceil(rest * 0.6);
+    return { A: 1, B: b, C: rest - b, D: 1, E: 1, F: 1 };
+  }
+  function estimate() {
+    var level = $('fLevel').value, v = $('fQCount').value, n = v === 'Auto' ? DEFAULT_COUNT[level] : Number(v);
+    var p = plan(n, level), secs = 0;
+    Object.keys(p).forEach(function (k) { var a = DEFAULT_SEC[k]; if (level === 'Leadership' && (k === 'B' || k === 'C')) a = 180; secs += p[k] * (a + 30); });
+    var mins = Math.round(secs / 60) + 6; // + consent, quick-fit, camera check and practice
+    $('qEstimate').textContent = n + ' questions · candidate time up to about ' + mins + ' minutes' + (mins > 30 ? ' (long: completion rates may drop)' : '');
+  }
+  $('fQCount').onchange = estimate; $('fLevel').onchange = estimate;
+
+  // ---------------- brief -> JD -> questions ----------------
+  $('btnFromBrief').onclick = function () {
+    var b = this;
+    $('detailsError').textContent = '';
+    if (!$('fClient').value.trim()) { $('detailsError').textContent = 'Enter the client company first.'; $('fClient').focus(); return; }
+    if ($('fBrief').value.trim().split(/\s+/).length < 5) { $('detailsError').textContent = 'Write a 2–3 line brief first.'; return; }
+    if ($('fJD').value.trim() && !confirm('Replace the JD already in the form with a new AI-written JD?')) return;
+    busy(b, true, 'Writing the JD… (about a minute)');
+    api('con.jd.generate', { brief: $('fBrief').value, client: $('fClient').value, level: $('fLevel').value,
+                             confidential: $('fConfidential').checked ? 'Yes' : 'No' }, 150000).then(function (r) {
+      var f = r.fields || {};
+      var num = function (v) { return String(v || '').replace(/[^\d.]/g, ''); };
+      if (f.jd) $('fJD').value = f.jd;
+      if (f.title && !$('fTitle').value.trim()) $('fTitle').value = f.title;
+      if (f.location && !$('fLocation').value.trim()) $('fLocation').value = f.location;
+      if (f.ctcMinLPA && !$('fCtcMin').value) $('fCtcMin').value = num(f.ctcMinLPA);
+      if (f.ctcMaxLPA && !$('fCtcMax').value) $('fCtcMax').value = num(f.ctcMaxLPA);
+      if (f.maxNoticeDays && !$('fNotice').value) $('fNotice').value = num(f.maxNoticeDays);
+      if (f.mustHaves) $('fMust').value = f.mustHaves;
+      if (f.niceToHaves) $('fNice').value = f.niceToHaves;
+      if (f.clientValues && !$('fValues').value.trim()) $('fValues').value = f.clientValues;
+      if (['Entry', 'Mid', 'Leadership'].indexOf(f.level) > -1) $('fLevel').value = f.level;
+      if (!$('fTitle').value.trim()) throw new Error('The AI could not work out the role title. Please type it and click "Save and generate questions".');
+      b.textContent = 'Drafting the questions…';
+      return saveRole($('btnSaveRole')).then(function () { tab('tabQuestions'); questions = []; generate(); });
+    }).then(function () { busy(b, false); })
+      .catch(function (e) { busy(b, false); $('detailsError').textContent = SS.errText(e); });
+  };
+
+  // ---------------- JD auto-read, bulk invite, comparison ----------------
+  $('btnReadJD').onclick = function () {
+    var b = this;
+    if ($('fJD').value.trim().split(/\s+/).length < 20) { $('detailsError').textContent = 'Paste the full JD first.'; return; }
+    busy(b, true, 'Reading the JD…');
+    api('con.jd.parse', { jd: $('fJD').value, client: $('fClient').value }, 120000).then(function (r) {
+      busy(b, false);
+      var f = r.fields || {}, map = { fTitle: 'title', fLocation: 'location', fCtcMin: 'ctcMinLPA', fCtcMax: 'ctcMaxLPA', fNotice: 'maxNoticeDays', fMust: 'mustHaves', fNice: 'niceToHaves', fValues: 'clientValues' };
+      var filled = 0;
+      Object.keys(map).forEach(function (id) { var v = f[map[id]]; if (v && !$(id).value.trim()) { $(id).value = (id.indexOf('Ctc') > 0 || id === 'fNotice') ? String(v).replace(/[^\d.]/g, '') : String(v); filled++; } });
+      if (['Entry', 'Mid', 'Leadership'].indexOf(f.level) > -1) $('fLevel').value = f.level;
+      SS.toast(filled ? 'Filled ' + filled + ' field(s) from the JD. Please check them.' : 'Nothing new to fill: the form already has these details.', 'good');
+    }).catch(function (e) { busy(b, false); $('detailsError').textContent = SS.errText(e); });
+  };
+  $('btnBulk').onclick = function () {
+    var b = this;
+    var lines = $('bulkList').value.split(/\n/).map(function (l) { return l.trim(); }).filter(Boolean);
+    if (!lines.length) return;
+    busy(b, true, 'Creating…');
+    var results = [];
+    lines.reduce(function (p, line) {
+      return p.then(function () {
+        var parts = line.split(/\t|,/).map(function (x) { return x.trim(); });
+        var name = parts[0] || '', phone = (parts[1] || '').replace(/[^\d+]/g, ''), email = parts[2] || '';
+        if (/@/.test(phone)) { email = parts[1]; phone = (parts[2] || '').replace(/[^\d+]/g, ''); }
+        return api('con.candidate.invite', { roleId: role.roleId, name: name, phone: phone, email: email, sendEmail: $('iSendEmail').checked })
+          .then(function (r) { results.push(r.duplicate ? { name: name, error: 'Already in SmartScreen (skipped; invite individually to confirm)' } : { name: name, r: r }); })
+          .catch(function (e) { results.push({ name: name, error: SS.errText(e) }); });
+      });
+    }, Promise.resolve()).then(function () {
+      busy(b, false);
+      $('bulkResult').innerHTML = '<table class="list small"><tr><th>Candidate</th><th>Result</th></tr>' + results.map(function (x, i) {
+        return '<tr><td>' + esc(x.name) + '</td><td>' + (x.error ? '<span style="color:var(--bad)">' + esc(x.error) + '</span>' :
+          (x.r.emailed ? 'Email sent · ' : '') + (x.r.whatsapp ? '<a class="btn small" target="_blank" rel="noopener" href="' + esc(x.r.whatsapp) + '">WhatsApp</a>' : '') +
+          ' <button class="small secondary" data-bulkcopy="' + i + '">Copy link</button>') + '</td></tr>';
+      }).join('') + '</table>';
+      $('bulkResult').onclick = function (ev) { var k = ev.target.getAttribute('data-bulkcopy'); if (k !== null) copy(results[Number(k)].r.link); };
+      $('bulkList').value = '';
+      api('con.role.get', { roleId: role.roleId }).then(function (x) { renderCandidates(x.candidates); });
+    });
+  };
+  $('btnCompare').onclick = function () {
+    var b = this; busy(b, true, 'Preparing PDF…');
+    api('con.role.compare', { roleId: role.roleId }, 120000).then(function (r) { busy(b, false); downloadB64(r); })
+      .catch(function (e) { busy(b, false); SS.toast(SS.errText(e), 'bad'); });
+  };
 
   // ---------------- start ----------------
   if (!SS.configured()) { SS.screen('scrLogin'); $('lError').textContent = 'Setup not finished: paste the Web app URL into config.js.'; return; }
